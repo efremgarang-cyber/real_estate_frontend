@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { authApi } from "../api/auth"; // Pointing to your dedicated frontend endpoint file
-import { UserProfile, APIUser } from "../types";
+import { UserProfile, User } from "../types";
 
 interface AuthContextType {
-  user: APIUser | null;
+  user: User | null;
   profile: UserProfile | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
@@ -15,7 +15,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<APIUser | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 

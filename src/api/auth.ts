@@ -4,7 +4,7 @@ import {
   AuthResponse, 
   SuccessMessage, 
   UserProfile, 
-  APIUser 
+  User 
 } from '../types';
 
 // Concrete type definitions for our internal auth parameters
@@ -19,7 +19,7 @@ export interface InitializeWorkspacePayload {
 
 export interface WorkspaceResponse {
   profile: UserProfile;
-  user?: APIUser;
+  user?: User;
 }
 
 export const authApi = {
@@ -50,8 +50,8 @@ export const authApi = {
   /**
    * Re-verify session cookies / tokens on layout reload
    */
-  getCurrentUser: async (): Promise<{ user: APIUser; profile: UserProfile | null }> => {
-    const response = await api.get<{ user: APIUser; profile: UserProfile | null }>('/v1/me');
+  getCurrentUser: async (): Promise<{ user: User; profile: UserProfile | null }> => {
+    const response = await api.get<{ user: User; profile: UserProfile | null }>('/v1/me');
     return response.data;
   },
 

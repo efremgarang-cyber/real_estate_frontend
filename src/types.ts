@@ -50,24 +50,25 @@ export interface LoginCredentials {
   password: string;
 }
 
-export interface APIUser {
+export interface User {
   id: number;
   name: string;
+  email: string;
   role: 'admin' | 'broker' | 'agent';
   agency_id: number | null;
 }
 
 export interface UserProfile {
-  uid: string;
+  id: number;
   email: string;
   role: 'Admin' | 'Agent';
-  agencyId: string;
-  displayName: string;
+  agencyId: number;
+  name: string;
 }
 
 export interface AuthResponse {
   token: string;
-  user: APIUser;
+  user: User;
   profile?: UserProfile | null;
 }
 
@@ -158,8 +159,7 @@ export interface Lead {
   id: number;
   agency_id: number;
   assigned_to: number | null;
-  first_name: string;
-  last_name: string;
+  name: string;
   email: string;
   phone: string | null;
   kanban_stage: KanbanStage;

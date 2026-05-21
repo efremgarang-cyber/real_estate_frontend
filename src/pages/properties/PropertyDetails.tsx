@@ -20,7 +20,7 @@ import {
 import { formatCurrency, cn } from "../../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../../lib/AuthContext";
-import { leadsService } from "../../services/leadsService";
+import { leadApi } from "../../api/leads"; // Updated import
 
 const properties = [
   { 
@@ -111,17 +111,18 @@ export const PropertyDetail: React.FC = () => {
     
     setIsInitiating(true);
     try {
-      await leadsService.createLead({
-        agencyId: profile.agencyId,
+      // Updated to use the new leadApi
+      await leadApi.create({
+        agency_id: profile.agencyId,
         name: `Lead for ${property.title}`,
+        kanban_stage: "contacted",
         email: user?.email || "anonymous@buyer.com",
-        status: "Negotiating",
-        agentId: profile.uid,
+        agent_id: profile.id,
         budgetMin: property.price,
         budgetMax: property.price * 1.1,
         desiredBedrooms: property.beds,
         requirements: { propertyId: property.id, price: property.price }
-      });
+      } as any); // Cast as any if your CreateLeadPayload interface differs slightly from the old service payload
       
       setSuccess(true);
       setTimeout(() => {

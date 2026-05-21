@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../../lib/AuthContext";
 import { LogIn, Building2, UserPlus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export const LoginPage: React.FC = () => {
-  // Assuming your AuthContext now provides a register function for the email/password/name flow
   const { login, register, user, profile, createAgencyAndProfile } = useAuth();
+  const navigate = useNavigate();
   
   // Auth Form State
   const [isSignUp, setIsSignUp] = useState(false);
@@ -17,19 +18,24 @@ export const LoginPage: React.FC = () => {
   const [agencyName, setAgencyName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
 
+  // Automatically redirect when both user and profile are present
+  useEffect(() => {
+    if (user && profile) {
+      navigate("/properties", { replace: true });
+    }
+  }, [user, profile, navigate]);
+
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsAuthenticating(true);
     try {
       if (isSignUp) {
-        // You'll need to ensure your AuthContext has this register function
         await register(email, password, name);
       } else {
         await login(email, password);
       }
     } catch (error) {
       console.error("Authentication failed:", error);
-      // Add error handling/toast notifications here
     } finally {
       setIsAuthenticating(false);
     }
@@ -121,6 +127,7 @@ export const LoginPage: React.FC = () => {
     );
   }
 
+  // User is registered/logged in but has no agency profile yet
   if (user && !profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#E4E3E0] p-6">
@@ -149,6 +156,7 @@ export const LoginPage: React.FC = () => {
                 setIsCreating(true);
                 try {
                   await createAgencyAndProfile(agencyName, "Admin");
+                  // No need to manually navigate here; the useEffect will catch the updated profile state
                 } catch (e) {
                   setIsCreating(false);
                 }
@@ -162,5 +170,9 @@ export const LoginPage: React.FC = () => {
     );
   }
 
-  return null;
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#E4E3E0]">
+      <p className="font-mono text-sm uppercase italic">Redirecting to your workspace...</p>
+    </div>
+  );
 };
