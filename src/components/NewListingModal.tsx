@@ -10,9 +10,13 @@ interface NewListingModalProps {
 
 export const NewListingModal: React.FC<NewListingModalProps> = ({ onClose, onSuccess }) => {
   const [submitting, setSubmitting] = useState(false);
+  
+  // Form State
   const [title, setTitle] = useState("");
+  const [city, setCity] = useState("");
   const [location, setLocation] = useState("");
   const [price, setPrice] = useState("");
+  const [status, setStatus] = useState("active");
   const [beds, setBeds] = useState("");
   const [baths, setBaths] = useState("");
   const [sqft, setSqft] = useState("");
@@ -24,18 +28,19 @@ export const NewListingModal: React.FC<NewListingModalProps> = ({ onClose, onSuc
     try {
       await propertyApi.create({
         title,
+        city,
         location,
         price: Number(price),
-        beds: Number(beds),
+        bedrooms: Number(beds),
         baths: Number(baths),
         sqft: Number(sqft),
         description,
-        status: "active", // Enforces baseline status literal mapping
+        status, 
       } as any);
       onSuccess();
     } catch (err) {
       console.error("Failed to commit new listing metadata:", err);
-      alert("Error processing transaction entry. Please try again.");
+      alert("Validation failed. Please check the network tab for exact payload errors.");
     } finally {
       setSubmitting(false);
     }
@@ -63,17 +68,44 @@ export const NewListingModal: React.FC<NewListingModalProps> = ({ onClose, onSuc
         <form onSubmit={handleSubmit} className="space-y-5 text-left">
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Property Title</label>
-            <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Vasant Vihar Penthouse" className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm" />
+            <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. The Oribi Penthouse, Muthaiga" className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm" />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Location</label>
-              <input type="text" required value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Karen, Nairobi" className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm" />
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">City</label>
+              <select required value={city} onChange={(e) => setCity(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm cursor-pointer text-[#141414]">
+                <option value="" disabled>Select City...</option>
+                <option value="Nairobi">Nairobi</option>
+                <option value="Mombasa">Mombasa</option>
+                <option value="Nakuru">Nakuru</option>
+                <option value="Kisumu">Kisumu</option>
+                <option value="Eldoret">Eldoret</option>
+                <option value="Naivasha">Naivasha</option>
+                <option value="Other">Other</option>
+              </select>
             </div>
+            
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Neighborhood / Area</label>
+              <input type="text" required value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Karen, Kilimani" className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Asking Price (KES)</label>
-              <input type="number" required value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Price" className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm" />
+              <input type="number" required value={price} onChange={(e) => setPrice(e.target.value)} placeholder="e.g. 85000000" className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm" />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Listing Status</label>
+              <select required value={status} onChange={(e) => setStatus(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm cursor-pointer text-[#141414]">
+                <option value="active">Active</option>
+                <option value="under_contract">Under Contract</option>
+                <option value="closed">Closed</option>
+                <option value="expired">Expired</option>
+              </select>
             </div>
           </div>
 
@@ -94,7 +126,7 @@ export const NewListingModal: React.FC<NewListingModalProps> = ({ onClose, onSuc
 
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Public Summary Description</label>
-            <textarea required value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Provide descriptive context for prospective buyers..." className="w-full h-24 p-4 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] resize-none transition-all" />
+            <textarea required value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Provide descriptive context for prospective buyers..." className="w-full h-24 p-4 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] resize-none transition-all text-[#141414]" />
           </div>
 
           <button 
