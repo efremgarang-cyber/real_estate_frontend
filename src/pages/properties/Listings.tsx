@@ -204,7 +204,7 @@ export const PropertiesPage: React.FC = () => {
           })}
         </div>
       )}
-      
+
       <AnimatePresence>
         {showUploadModal && (
           <NewListingModal 

@@ -50,7 +50,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userInitial
               </div>
               <div className="min-w-0">
                 <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Email Address</p>
-                <p className="text-sm font-medium text-[#141414] truncate">{user?.email || "No email provided"}</p>
+                <p className="text-sm font-medium text-[#141414] truncate">{profile?.email}</p>
               </div>
             </div>
 
@@ -60,7 +60,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userInitial
                   <Building size={14} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Workspace ID</p>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Agency ID</p>
                   <p className="text-sm font-medium text-[#141414] truncate">{profile.agencyId}</p>
                 </div>
               </div>
