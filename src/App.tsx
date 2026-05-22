@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/AuthContext";
-import { Shell } from "./components/layout/Shell";
+import { Shell } from "./components/layout/DashboardLayout";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { DashboardOverview } from "./components/dashboard/Overview";
 import { KanbanBoard } from "./pages/leads/Kanban";
