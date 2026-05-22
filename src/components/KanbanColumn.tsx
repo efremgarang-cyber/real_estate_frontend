@@ -24,7 +24,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({ col, setSelectedLead
   });
 
   return (
-    <div className="flex-shrink-0 w-80 flex flex-col font-sans">
+    <div className="flex-shrink-0 w-120 flex flex-col font-sans">
       <div className="flex items-center justify-between mb-4 px-1">
         <div className="flex items-center gap-2">
           {col.id === "closed" && <CheckCircle2 size={16} className="text-green-500" />}

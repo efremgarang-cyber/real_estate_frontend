@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { 
-  DndContext, 
-  closestCorners, 
-  KeyboardSensor, 
-  PointerSensor, 
-  useSensor, 
-  useSensors, 
-  DragOverlay
+import {
+  DndContext,
+  closestCorners,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { Loader2, CreditCard, Sparkles, Plus } from "lucide-react";
@@ -17,7 +17,7 @@ import { Lead, KanbanStage } from "../../types";
 import { leadApi } from "../../api/leads";
 import { KanbanColumn } from "../../components/KanbanColumn";
 import { LeadDetailModal } from "../../components/LeadDetailModal";
-import { NewLeadModal } from "@/src/components/NewLeadModal"; // Clear modal association layer
+import { NewLeadModal } from "@/src/components/NewLeadModal";
 import { cn } from "../../lib/utils";
 
 interface Column {
@@ -27,38 +27,40 @@ interface Column {
 }
 
 export const STAGE_META: Record<KanbanStage, { color: string; dot: string }> = {
-  new:       { color: "text-blue-600 font-bold", dot: "bg-blue-600" },
-  contacted: { color: "text-purple-600 font-bold", dot: "bg-purple-600" },
-  showing:   { color: "text-indigo-600 font-bold", dot: "bg-indigo-600" },
-  offer:     { color: "text-amber-600 font-bold", dot: "bg-amber-600" },
-  escrow:    { color: "text-teal-600 font-bold", dot: "bg-teal-600" },
-  closed:    { color: "text-green-600 font-bold", dot: "bg-green- green" },
-  lost:      { color: "text-red-600 font-bold", dot: "bg-red-600" },
+  new:       { color: "text-blue-600",   dot: "bg-blue-500" },
+  contacted: { color: "text-purple-600", dot: "bg-purple-500" },
+  showing:   { color: "text-indigo-600", dot: "bg-indigo-500" },
+  offer:     { color: "text-amber-600",  dot: "bg-amber-500" },
+  escrow:    { color: "text-teal-600",   dot: "bg-teal-500" },
+  closed:    { color: "text-green-600",  dot: "bg-green-500" },
+  lost:      { color: "text-red-600",    dot: "bg-red-500" },
 };
+
+const INITIAL_COLUMNS: Column[] = [
+  { id: "new",    title: "New Leads",    tasks: [] },
+  { id: "offer",  title: "Under Offer",  tasks: [] },
+  { id: "closed", title: "Closed & Paid", tasks: [] },
+];
 
 export const KanbanBoard: React.FC = () => {
   const { user } = useAuth();
-  const [columns, setColumns] = useState<Column[]>([
-    { id: "new",    title: "New Leads",    tasks: [] },
-    { id: "offer",  title: "Under Offer",  tasks: [] },
-    { id: "closed", title: "Closed & Paid", tasks: [] },
-  ]);
-  const [activeId, setActiveId]       = useState<number | null>(null);
+  const [columns, setColumns]           = useState<Column[]>(INITIAL_COLUMNS);
+  const [activeId, setActiveId]         = useState<number | null>(null);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [loadingBoard, setLoadingBoard] = useState<boolean>(true);
-  const [showUploadModal, setShowUploadModal] = useState<boolean>(false);
-  const [triggerRefresh, setTriggerRefresh] = useState<number>(0);
+  const [showNewLeadModal, setShowNewLeadModal] = useState<boolean>(false);
+  const [triggerRefresh, setTriggerRefresh]     = useState<number>(0);
 
   const fetchBoardLeads = async () => {
     if (!user) return;
     try {
       setLoadingBoard(true);
       const response = await leadApi.getAll(1);
-      const leads = response.data;
+      const leads: Lead[] = response.data;
       setColumns([
-        { id: "new",    title: "New Leads",    tasks: leads.filter((l: Lead) => l.kanban_stage === "new") },
-        { id: "offer",  title: "Under Offer",  tasks: leads.filter((l: Lead) => l.kanban_stage === "offer") },
-        { id: "closed", title: "Closed & Paid", tasks: leads.filter((l: Lead) => l.kanban_stage === "closed") },
+        { id: "new",    title: "New Leads",    tasks: leads.filter(l => l.kanban_stage === "new") },
+        { id: "offer",  title: "Under Offer",  tasks: leads.filter(l => l.kanban_stage === "offer") },
+        { id: "closed", title: "Closed & Paid", tasks: leads.filter(l => l.kanban_stage === "closed") },
       ]);
     } catch (error) {
       console.error("Failed to sync Kanban board data:", error);
@@ -80,9 +82,7 @@ export const KanbanBoard: React.FC = () => {
     const { active, over } = event;
     if (!over) { setActiveId(null); return; }
 
-    const activeLeadId = Number(active.id);
-    const overId = over.id;
-
+    const activeLeadId  = Number(active.id);
     let activeLead: Lead | undefined;
     let fromStage: KanbanStage | undefined;
 
@@ -91,14 +91,12 @@ export const KanbanBoard: React.FC = () => {
       if (lead) { activeLead = lead; fromStage = col.id; }
     });
 
-    let targetStageId = columns.find(col => col.id === overId)?.id;
-    if (!targetStageId) {
-      targetStageId = columns.find(col => col.tasks.some(t => t.id === overId))?.id;
-    }
+    let targetStageId = columns.find(col => col.id === over.id)?.id
+      ?? columns.find(col => col.tasks.some(t => t.id === over.id))?.id;
 
     if (activeLead && targetStageId && fromStage !== targetStageId) {
-      setColumns(columns.map(col => {
-        if (col.id === fromStage)    return { ...col, tasks: col.tasks.filter(t => t.id !== activeLeadId) };
+      setColumns(prev => prev.map(col => {
+        if (col.id === fromStage)     return { ...col, tasks: col.tasks.filter(t => t.id !== activeLeadId) };
         if (col.id === targetStageId) return { ...col, tasks: [...col.tasks, { ...activeLead!, kanban_stage: targetStageId! }] };
         return col;
       }));
@@ -130,57 +128,68 @@ export const KanbanBoard: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 font-sans h-full flex flex-col">
-      {/* Top Utility Button Action Row */}
-      <div className="flex justify-end items-center px-1">
-        <button 
-          onClick={() => setShowUploadModal(true)}
-          className="flex items-center gap-2 bg-[#141414] hover:bg-black text-white px-5 py-3 rounded-xl font-medium transition-colors text-sm shadow-sm"
+    <div className="flex flex-col gap-5 h-full font-sans overflow-hidden">
+
+      {/* Toolbar */}
+      <div className="flex items-center justify-between shrink-0 px-1">
+        <div className="flex items-center gap-3">
+          {columns.map(col => (
+            <span key={col.id} className="flex items-center gap-1.5 text-xs font-semibold text-gray-400">
+              <span className={cn("w-1.5 h-1.5 rounded-full", STAGE_META[col.id].dot)} />
+              <span className={cn("font-bold", STAGE_META[col.id].color)}>{col.tasks.length}</span>
+              {col.title}
+            </span>
+          ))}
+        </div>
+        <button
+          onClick={() => setShowNewLeadModal(true)}
+          className="flex items-center gap-2 bg-[#141414] hover:bg-black text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-colors shadow-sm"
         >
-          <Plus size={16} /> New Lead
+          <Plus size={14} />
+          New Lead
         </button>
       </div>
 
-      <div className="flex gap-4 h-full overflow-x-auto pb-6 items-start flex-1">
+      {/* Board */}
+      <div className="flex-1 overflow-hidden">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
         >
-          {columns.map((col) => (
-            <div key={col.id} className="flex flex-col min-w-[300px] max-w-[300px]">
-              {/* Column header */}
-              <div className="flex items-center justify-between mb-3 px-1">
-                <div className="flex items-center gap-2">
+          <div className="flex gap-4 h-full overflow-x-auto pb-4">
+            {columns.map(col => (
+              <div key={col.id} className="flex flex-col w-[300px] shrink-0 h-full">
+
+                {/* Column header */}
+                <div className="flex items-center justify-between mb-2.5 px-0.5">
                   <span className={cn(
                     "inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider",
                     STAGE_META[col.id].color
                   )}>
-                    <span className={cn("w-1.5 h-1.5 rounded-full", STAGE_META[col.id].dot)} />
+                    <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", STAGE_META[col.id].dot)} />
                     {col.title}
                   </span>
+                  <span className="text-xs font-bold text-gray-400 tabular-nums">
+                    {col.tasks.length}
+                  </span>
                 </div>
-                <span className="text-xs font-bold text-gray-400 tabular-nums">
-                  {col.tasks.length}
-                </span>
-              </div>
 
-              {/* Column body */}
-              <div className="bg-[#f7f7f7] rounded-2xl p-2 flex-1 min-h-[200px]">
-                <KanbanColumn
-                  col={col}
-                  setSelectedLead={setSelectedLead}
-                  onRefresh={fetchBoardLeads}
-                />
-              </div>
-            </div>
-          ))}
+                {/* Column trough — scrollable independently */}
+                <div className="bg-[#f7f7f7] rounded-2xl p-2 flex-1 overflow-y-auto">
+                  <KanbanColumn
+                    col={col}
+                    setSelectedLead={setSelectedLead}
+                    onRefresh={fetchBoardLeads}
+                  />
+                </div>
 
-          <DragOverlay dropAnimation={{
-            duration: 200,
-            easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)",
-          }}>
+              </div>
+            ))}
+          </div>
+
+          <DragOverlay dropAnimation={{ duration: 200, easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)" }}>
             {activeLead ? (
               <motion.div
                 initial={{ rotate: 0, scale: 1 }}
@@ -192,12 +201,12 @@ export const KanbanBoard: React.FC = () => {
                     <span className="text-[10px] font-bold uppercase tracking-widest text-blue-500 block mb-1">
                       Moving
                     </span>
-                    <h4 className="font-display font-bold text-[#141414] text-base leading-tight">
+                    <h4 className="font-bold text-[#141414] text-base leading-tight">
                       {activeLead.name}
                     </h4>
                     <p className="text-xs text-gray-400 mt-0.5">{activeLead.email}</p>
                   </div>
-                  <div className="w-8 h-8 rounded-xl bg-[#f4f4f4] flex items-center justify-center flex-shrink-0">
+                  <div className="w-8 h-8 rounded-xl bg-[#f4f4f4] flex items-center justify-center shrink-0">
                     <Sparkles size={14} className="text-gray-400" />
                   </div>
                 </div>
@@ -213,6 +222,7 @@ export const KanbanBoard: React.FC = () => {
         </DndContext>
       </div>
 
+      {/* Modals */}
       <AnimatePresence>
         {selectedLead && (
           <LeadDetailModal
@@ -220,11 +230,11 @@ export const KanbanBoard: React.FC = () => {
             onClose={() => { setSelectedLead(null); fetchBoardLeads(); }}
           />
         )}
-        {showUploadModal && (
-          <NewLeadModal 
-            onClose={() => setShowUploadModal(false)}
+        {showNewLeadModal && (
+          <NewLeadModal
+            onClose={() => setShowNewLeadModal(false)}
             onSuccess={() => {
-              setShowUploadModal(false);
+              setShowNewLeadModal(false);
               setTriggerRefresh(prev => prev + 1);
             }}
           />
