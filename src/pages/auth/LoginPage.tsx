@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../lib/AuthContext";
-import { LogIn, Building2, UserPlus } from "lucide-react";
+import { Building2, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export const LoginPage: React.FC = () => {
@@ -12,6 +12,7 @@ export const LoginPage: React.FC = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   // Agency Creation State
@@ -43,26 +44,33 @@ export const LoginPage: React.FC = () => {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#E4E3E0] p-6">
-        <div className="dashboard-card max-w-md w-full p-10 text-center bg-white shadow-[8px_8px_0px_0px_rgba(0,0,0,0.1)] border-2 border-[#141414]">
-          <div className="bg-[#141414] text-[#E4E3E0] w-16 h-16 flex items-center justify-center mx-auto mb-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)]">
-            <Building2 size={32} />
+      <div className="min-h-screen flex items-center justify-center bg-[#E4E3E0] p-6 font-sans">
+        <div className="max-w-md w-full p-10 bg-white rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)]">
+          <div className="flex flex-col items-center justify-center mb-6">
+            <img 
+              src="/makao-icon-dark.svg" 
+              alt="Makao Logo" 
+              className="w-14 h-14 object-contain" 
+            />
           </div>
-          <h1 className="text-3xl font-black uppercase mb-1 tracking-tighter italic text-[#141414]">
-            Vantage
+          
+          <h1 className="font-display text-2xl font-bold text-center text-[#141414] mb-2">
+            {isSignUp ? "Create Account" : "Welcome Back"}
           </h1>
-          <p className="font-mono text-xs text-gray-500 uppercase mb-8 italic">
-            Real Estate OS • Workspace Access
+          <p className="text-sm text-center text-gray-500 mb-8">
+            {isSignUp ? "Sign up to start using Makao." : "Sign in to continue to Makao."}
           </p>
           
-          <form onSubmit={handleAuthSubmit} className="space-y-4 text-left">
+          <form onSubmit={handleAuthSubmit} className="space-y-5 text-left">
             {isSignUp && (
               <div>
-                <label className="block text-[10px] font-mono text-gray-500 uppercase mb-1.5 italic">Full Name</label>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                  Full Name
+                </label>
                 <input 
                   type="text" 
                   required
-                  className="input-field w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-[#141414] outline-none transition-colors"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all"
                   placeholder="e.g. Jane Doe"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -71,57 +79,90 @@ export const LoginPage: React.FC = () => {
             )}
             
             <div>
-              <label className="block text-[10px] font-mono text-gray-500 uppercase mb-1.5 italic">Email Address</label>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                Email Address
+              </label>
               <input 
                 type="email" 
                 required
-                className="input-field w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-[#141414] outline-none transition-colors"
-                placeholder="name@company.com"
+                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all"
+                placeholder="you@company.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
 
             <div>
-              <label className="block text-[10px] font-mono text-gray-500 uppercase mb-1.5 italic">Password</label>
-              <input 
-                type="password" 
-                required
-                className="input-field w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-[#141414] outline-none transition-colors"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Password
+                </label>
+                {!isSignUp && (
+                  <button type="button" className="text-xs font-semibold text-[#141414] hover:underline">
+                    Forgot password?
+                  </button>
+                )}
+              </div>
+              <div className="relative">
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  required
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all pr-12"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
+
+            {!isSignUp && (
+              <div className="flex items-center pt-2">
+                <input 
+                  type="checkbox" 
+                  id="remember" 
+                  className="w-4 h-4 rounded border-gray-300 text-[#141414] focus:ring-[#141414] focus:ring-2 cursor-pointer" 
+                />
+                <label htmlFor="remember" className="ml-2 text-sm text-gray-600 cursor-pointer">
+                  Remember me
+                </label>
+              </div>
+            )}
 
             <button 
               type="submit"
               disabled={isAuthenticating}
-              className="btn-primary w-full flex items-center justify-center gap-3 py-4 mt-6 bg-[#141414] text-white font-bold uppercase tracking-wider shadow-[4px_4px_0px_0px_rgba(0,0,0,0.8)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 py-3.5 mt-4 bg-[#141414] hover:bg-black text-white rounded-xl font-medium transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {isAuthenticating ? (
                 "Processing..."
               ) : isSignUp ? (
-                <><UserPlus size={18} /> Create Account</>
+                "Sign Up"
               ) : (
-                <><LogIn size={18} /> Secure Login</>
+                "Sign In"
               )}
+              {!isAuthenticating && <ArrowRight size={18} />}
             </button>
           </form>
 
-          <div className="mt-8 pt-6 border-t-2 border-gray-100">
+          <div className="mt-8 text-center">
+            <span className="text-sm text-gray-500">
+              {isSignUp ? "Already have an account?" : "Don't have an account?"}
+            </span>
             <button 
               type="button"
               onClick={() => setIsSignUp(!isSignUp)}
-              className="text-xs font-mono text-gray-600 hover:text-[#141414] uppercase italic transition-colors"
+              className="ml-1 text-sm font-semibold text-[#141414] hover:underline"
             >
-              {isSignUp ? "Already have an account? Log in" : "Need an account? Sign up"}
+              {isSignUp ? "Sign In" : "Sign up"}
             </button>
           </div>
-          
-          <p className="mt-6 text-[9px] font-mono text-gray-400 uppercase italic">
-            Enterprise Grade Security • Multi-Tenant Isolation
-          </p>
         </div>
       </div>
     );
@@ -130,19 +171,25 @@ export const LoginPage: React.FC = () => {
   // User is registered/logged in but has no agency profile yet
   if (user && !profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#E4E3E0] p-6">
-        <div className="dashboard-card max-w-md w-full p-10 bg-white border-2 border-[#141414] shadow-[8px_8px_0px_0px_rgba(0,0,0,0.1)]">
-          <h2 className="text-2xl font-black uppercase mb-6 italic text-[#141414]">Initialize Workspace</h2>
-          <p className="text-sm text-gray-600 mb-8">
-            Welcome, <span className="font-bold">{user.name || name || 'User'}</span>. You don't have an agency assigned to your account. Create a new agency to get started.
+      <div className="min-h-screen flex items-center justify-center bg-[#E4E3E0] p-6 font-sans">
+        <div className="max-w-md w-full p-10 bg-white rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)]">
+          <div className="w-14 h-14 rounded-full bg-[#141414] text-[#E4E3E0] flex items-center justify-center mx-auto mb-5 shadow-md">
+            <Building2 size={24} />
+          </div>
+
+          <h2 className="font-display text-2xl font-bold text-center text-[#141414] mb-2">Initialize Workspace</h2>
+          <p className="text-sm text-center text-gray-500 mb-8">
+            Welcome, <span className="font-semibold text-[#141414]">{user.name || name || 'User'}</span>. You don't have an agency assigned to your account.
           </p>
           
-          <div className="space-y-6">
+          <div className="space-y-5">
             <div>
-              <label className="block text-[10px] font-mono text-gray-500 uppercase mb-2 italic">Agency Name</label>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                Agency Name
+              </label>
               <input 
                 type="text" 
-                className="input-field w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-[#141414] outline-none transition-colors"
+                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all"
                 placeholder="e.g. Royal Estate Group"
                 value={agencyName}
                 onChange={(e) => setAgencyName(e.target.value)}
@@ -150,19 +197,19 @@ export const LoginPage: React.FC = () => {
             </div>
             
             <button 
-              className="btn-primary w-full flex items-center justify-center gap-3 py-4 bg-[#141414] text-white font-bold uppercase tracking-wider shadow-[4px_4px_0px_0px_rgba(0,0,0,0.8)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#141414] hover:bg-black text-white rounded-xl font-medium transition-colors disabled:opacity-70 disabled:cursor-not-allowed mt-4"
               disabled={!agencyName || isCreating}
               onClick={async () => {
                 setIsCreating(true);
                 try {
                   await createAgencyAndProfile(agencyName, "Admin");
-                  // No need to manually navigate here; the useEffect will catch the updated profile state
                 } catch (e) {
                   setIsCreating(false);
                 }
               }}
             >
               {isCreating ? "Initializing..." : "Create Agency"}
+              {!isCreating && <ArrowRight size={18} />}
             </button>
           </div>
         </div>
@@ -172,7 +219,7 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#E4E3E0]">
-      <p className="font-mono text-sm uppercase italic">Redirecting to your workspace...</p>
+      <p className="text-sm font-medium text-gray-500 animate-pulse">Redirecting to your workspace...</p>
     </div>
   );
 };
