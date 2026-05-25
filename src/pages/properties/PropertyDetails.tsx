@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { 
-  ArrowLeft, 
-  MapPin, 
-  Bed, 
-  Bath, 
-  Maximize2, 
-  Calendar, 
+import {
+  ArrowLeft,
+  MapPin,
+  Bed,
+  Bath,
+  Maximize2,
+  Calendar,
   CheckCircle,
   Phone,
   Mail,
@@ -18,13 +18,13 @@ import {
   Plus
 } from "lucide-react";
 import { formatCurrency, cn } from "../../lib/utils";
-import { propertyApi } from "../../api/properties"; 
+import { propertyApi } from "../../api/properties";
 import { PropertyCard } from "../../components/PropertyCard";
 
 export const PropertyDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  
+
   // Asynchronous State Management
   const [property, setProperty] = useState<any>(null); // Type this to your actual Property interface
   const [isLoading, setIsLoading] = useState(true);
@@ -33,10 +33,10 @@ export const PropertyDetail: React.FC = () => {
   useEffect(() => {
     const fetchProperty = async () => {
       if (!id) return;
-      
+
       setIsLoading(true);
       setError(null);
-      
+
       try {
         const response = await propertyApi.getById(id);
         setProperty(response.data);
@@ -79,7 +79,7 @@ export const PropertyDetail: React.FC = () => {
   const expirationDate = property.contract_end_date || property.expirationDate;
   const isExpired = expirationDate ? new Date(expirationDate) < new Date() : false;
   const isNearExpiry = expirationDate ? (new Date(expirationDate).getTime() - new Date().getTime()) < 7 * 24 * 60 * 60 * 1000 : false;
-  
+
   // Fallbacks for UI safety in case the backend hasn't implemented these relations yet
   const images = property.images?.length > 0 ? property.images : ["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=1200"];
   const agent = property.agent || { name: "System Admin", avatar: "https://ui-avatars.com/api/?name=Admin&background=141414&color=fff" };
@@ -105,18 +105,18 @@ export const PropertyDetail: React.FC = () => {
         <div className="lg:col-span-2 space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2 aspect-[21/9] bg-gray-100 rounded-[2rem] overflow-hidden">
-              <img 
-                src={images[0]} 
-                className="w-full h-full object-cover hover:scale-105 transition-transform duration-700" 
-                alt={property.title} 
+              <img
+                src={images[0]}
+                className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
+                alt={property.title}
               />
             </div>
             {images.slice(1, 3).map((img: string, i: number) => (
               <div key={i} className="aspect-video bg-gray-100 rounded-[2rem] overflow-hidden">
-                <img 
-                  src={img} 
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-700" 
-                  alt={`${property.title} extra ${i + 1}`} 
+                <img
+                  src={img}
+                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
+                  alt={`${property.title} extra ${i + 1}`}
                 />
               </div>
             ))}
@@ -167,7 +167,7 @@ export const PropertyDetail: React.FC = () => {
                   "flex items-center gap-2 font-bold text-lg",
                   isExpired ? "text-red-500" : isNearExpiry ? "text-orange-500" : "text-[#141414]"
                 )}>
-                  <Calendar size={20} className={isExpired ? "text-red-400" : isNearExpiry ? "text-orange-400" : "text-gray-400"} /> 
+                  <Calendar size={20} className={isExpired ? "text-red-400" : isNearExpiry ? "text-orange-400" : "text-gray-400"} />
                   <span className="text-sm">{expirationDate || "Not Set"}</span>
                 </div>
               </div>
@@ -231,7 +231,7 @@ export const PropertyDetail: React.FC = () => {
               <button className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-gray-50 hover:bg-gray-100 text-[#141414] rounded-xl text-sm font-medium transition-colors">
                 <Mail size={18} /> Send Email
               </button>
-              
+
               <div className="pt-4 mt-2 border-t border-gray-100">
                 <button className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-sm font-medium transition-colors">
                   <FileText size={18} /> Request DocuSign
@@ -249,9 +249,9 @@ export const PropertyDetail: React.FC = () => {
               <h3 className="font-display font-bold text-[#141414] text-sm">Title Deed Verification</h3>
             </div>
             <p className="text-sm text-gray-500 mb-6 leading-relaxed">Documentation for this property is locked in the Vantage Secure Vault. Agents: Upload Title Deed to initiate verification.</p>
-            
+
             <div className="space-y-3">
-              <button 
+              <button
                 onClick={() => navigate("/vault")}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-200 text-[#141414] rounded-xl text-sm font-medium hover:bg-gray-100 transition-colors"
               >

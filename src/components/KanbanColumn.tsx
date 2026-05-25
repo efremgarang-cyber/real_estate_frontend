@@ -16,15 +16,16 @@ interface KanbanColumnProps {
   col: Column;
   setSelectedLead: (l: Lead) => void;
   onRefresh: () => void;
+  onCloseDeal: (lead: Lead) => void;
 }
 
-export const KanbanColumn: React.FC<KanbanColumnProps> = ({ col, setSelectedLead, onRefresh }) => {
+export const KanbanColumn: React.FC<KanbanColumnProps> = ({ col, setSelectedLead, onRefresh, onCloseDeal }) => {
   const { setNodeRef, isOver } = useDroppable({
     id: col.id,
   });
 
   return (
-    <div className="flex-shrink-0 w-120 flex flex-col font-sans">
+    <div className="w-full flex flex-col font-sans">
       <div className="flex items-center justify-between mb-4 px-1">
         <div className="flex items-center gap-2">
           {col.id === "closed" && <CheckCircle2 size={16} className="text-green-500" />}
@@ -45,7 +46,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({ col, setSelectedLead
         <SortableContext items={col.tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
           <div className="space-y-4 h-full">
             {col.tasks.map((task) => (
-              <KanbanCard key={task.id} task={task} onClick={() => setSelectedLead(task)} onRefresh={onRefresh} />
+              <KanbanCard key={task.id} task={task} onClick={() => setSelectedLead(task)} onRefresh={onRefresh} onCloseDeal={ () => onCloseDeal(task)} />
             ))}
           </div>
         </SortableContext>

@@ -18,6 +18,7 @@ import { leadApi } from "../../api/leads";
 import { KanbanColumn } from "../../components/KanbanColumn";
 import { LeadDetailModal } from "../../components/LeadDetailModal";
 import { NewLeadModal } from "@/src/components/NewLeadModal";
+import { CloseDealModal } from "@/src/components/CloseDealModal";
 import { cn } from "../../lib/utils";
 
 interface Column {
@@ -48,6 +49,7 @@ export const KanbanBoard: React.FC = () => {
   const [activeId, setActiveId]         = useState<number | null>(null);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [loadingBoard, setLoadingBoard] = useState<boolean>(true);
+  const [leadToClose, setLeadToClose] = useState<Lead | null>(null);
   const [showNewLeadModal, setShowNewLeadModal] = useState<boolean>(false);
   const [triggerRefresh, setTriggerRefresh]     = useState<number>(0);
 
@@ -160,28 +162,16 @@ export const KanbanBoard: React.FC = () => {
         >
           <div className="flex gap-4 h-full overflow-x-auto pb-4">
             {columns.map(col => (
-              <div key={col.id} className="flex flex-col w-[300px] shrink-0 h-full">
+              // 1. UPDATED: Increased width from 300px to 350px
+              <div key={col.id} className="flex flex-col w-[350px] shrink-0 h-full">
 
-                {/* Column header */}
-                <div className="flex items-center justify-between mb-2.5 px-0.5">
-                  <span className={cn(
-                    "inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider",
-                    STAGE_META[col.id].color
-                  )}>
-                    <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", STAGE_META[col.id].dot)} />
-                    {col.title}
-                  </span>
-                  <span className="text-xs font-bold text-gray-400 tabular-nums">
-                    {col.tasks.length}
-                  </span>
-                </div>
-
-                {/* Column trough — scrollable independently */}
-                <div className="bg-[#f7f7f7] rounded-2xl p-2 flex-1 overflow-y-auto">
+                {/* 2. UPDATED: Increased padding to p-3 to make the gray column visibly wider than the cards */}
+                <div className="bg-[#f7f7f7] rounded-2xl p-3 flex-1 overflow-y-auto">
                   <KanbanColumn
                     col={col}
                     setSelectedLead={setSelectedLead}
                     onRefresh={fetchBoardLeads}
+                    onCloseDeal={setLeadToClose}
                   />
                 </div>
 
@@ -194,7 +184,8 @@ export const KanbanBoard: React.FC = () => {
               <motion.div
                 initial={{ rotate: 0, scale: 1 }}
                 animate={{ rotate: 2, scale: 1.02 }}
-                className="w-[300px] bg-white rounded-2xl p-4 border border-gray-100 shadow-xl cursor-grabbing"
+                // 3. UPDATED: Adjusted dragging card to 310px to perfectly match the new inner card width
+                className="w-[310px] bg-white rounded-2xl p-4 border border-gray-100 shadow-xl cursor-grabbing"
               >
                 <div className="flex items-start justify-between mb-3">
                   <div>
@@ -236,6 +227,16 @@ export const KanbanBoard: React.FC = () => {
             onSuccess={() => {
               setShowNewLeadModal(false);
               setTriggerRefresh(prev => prev + 1);
+            }}
+          />
+        )}
+        {leadToClose && (
+          <CloseDealModal
+            lead={leadToClose}
+            onClose={() => setLeadToClose(null)}
+            onSuccess={() => {
+              setLeadToClose(null);
+              fetchBoardLeads();
             }}
           />
         )}

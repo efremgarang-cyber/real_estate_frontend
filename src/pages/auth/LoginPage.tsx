@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../lib/AuthContext";
-import { Building2, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { Building2, ArrowRight, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export const LoginPage: React.FC = () => {
@@ -14,10 +14,14 @@ export const LoginPage: React.FC = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  
+  // NEW: Error State
+  const [authError, setAuthError] = useState<string | null>(null);
 
   // Agency Creation State
   const [agencyName, setAgencyName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const [agencyError, setAgencyError] = useState<string | null>(null);
 
   // Automatically redirect when both user and profile are present
   useEffect(() => {
@@ -26,19 +30,48 @@ export const LoginPage: React.FC = () => {
     }
   }, [user, profile, navigate]);
 
+  // Clear errors when the user switches between Sign In and Sign Up
+  useEffect(() => {
+    setAuthError(null);
+  }, [isSignUp]);
+
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsAuthenticating(true);
+    setAuthError(null); // Clear previous errors on new submission
+    
     try {
       if (isSignUp) {
         await register(email, password, name);
       } else {
         await login(email, password);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Authentication failed:", error);
+      
+      // Extract the error message from the backend response (Axios/Fetch standard)
+      const message = 
+        error.response?.data?.message || 
+        error.response?.data?.error || 
+        error.message || 
+        "Authentication failed. Please check your credentials and try again.";
+        
+      setAuthError(message);
     } finally {
       setIsAuthenticating(false);
+    }
+  };
+
+  const handleCreateAgency = async () => {
+    setIsCreating(true);
+    setAgencyError(null);
+    try {
+      await createAgencyAndProfile(agencyName, "Admin");
+    } catch (error: any) {
+      console.error("Agency creation failed:", error);
+      const message = error.response?.data?.message || "Failed to create agency. Please try again.";
+      setAgencyError(message);
+      setIsCreating(false);
     }
   };
 
@@ -57,9 +90,16 @@ export const LoginPage: React.FC = () => {
           <h1 className="font-display text-2xl font-bold text-center text-[#141414] mb-2">
             {isSignUp ? "Create Account" : "Welcome Back"}
           </h1>
-          <p className="text-sm text-center text-gray-500 mb-8">
+          <p className="text-sm text-center text-gray-500 mb-6">
             {isSignUp ? "Sign up to start using Makao." : "Sign in to continue to Makao."}
           </p>
+
+          {authError && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
+              <AlertCircle size={18} className="text-red-600 shrink-0 mt-0.5" />
+              <p className="text-sm font-medium text-red-600">{authError}</p>
+            </div>
+          )}
           
           <form onSubmit={handleAuthSubmit} className="space-y-5 text-left">
             {isSignUp && (
@@ -73,7 +113,10 @@ export const LoginPage: React.FC = () => {
                   className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all"
                   placeholder="e.g. Jane Doe"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (authError) setAuthError(null); // Clear error on typing
+                  }}
                 />
               </div>
             )}
@@ -88,7 +131,10 @@ export const LoginPage: React.FC = () => {
                 className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all"
                 placeholder="you@company.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (authError) setAuthError(null);
+                }}
               />
             </div>
 
@@ -110,7 +156,10 @@ export const LoginPage: React.FC = () => {
                   className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all pr-12"
                   placeholder="••••••••"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (authError) setAuthError(null);
+                  }}
                 />
                 <button 
                   type="button" 
@@ -178,9 +227,17 @@ export const LoginPage: React.FC = () => {
           </div>
 
           <h2 className="font-display text-2xl font-bold text-center text-[#141414] mb-2">Initialize Workspace</h2>
-          <p className="text-sm text-center text-gray-500 mb-8">
+          <p className="text-sm text-center text-gray-500 mb-6">
             Welcome, <span className="font-semibold text-[#141414]">{user.name || name || 'User'}</span>. You don't have an agency assigned to your account.
           </p>
+
+          {/* NEW: Agency Error Banner */}
+          {agencyError && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
+              <AlertCircle size={18} className="text-red-600 shrink-0 mt-0.5" />
+              <p className="text-sm font-medium text-red-600">{agencyError}</p>
+            </div>
+          )}
           
           <div className="space-y-5">
             <div>
@@ -192,21 +249,17 @@ export const LoginPage: React.FC = () => {
                 className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all"
                 placeholder="e.g. Royal Estate Group"
                 value={agencyName}
-                onChange={(e) => setAgencyName(e.target.value)}
+                onChange={(e) => {
+                  setAgencyName(e.target.value);
+                  if (agencyError) setAgencyError(null);
+                }}
               />
             </div>
             
             <button 
               className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#141414] hover:bg-black text-white rounded-xl font-medium transition-colors disabled:opacity-70 disabled:cursor-not-allowed mt-4"
               disabled={!agencyName || isCreating}
-              onClick={async () => {
-                setIsCreating(true);
-                try {
-                  await createAgencyAndProfile(agencyName, "Admin");
-                } catch (e) {
-                  setIsCreating(false);
-                }
-              }}
+              onClick={handleCreateAgency}
             >
               {isCreating ? "Initializing..." : "Create Agency"}
               {!isCreating && <ArrowRight size={18} />}

@@ -36,6 +36,7 @@ export const PropertiesPage: React.FC = () => {
       setError(null);
       try {
         const response = await propertyApi.getAll(page);
+        console.log(response.data);
         // Laravel paginated responses typically nest the array inside a 'data' property.
         // E.g., response = { current_page: 1, data: [...properties], last_page: 5 }
         // Adjust this extraction based on your exact PAGINATED_RESPONSE interface.
@@ -172,7 +173,7 @@ export const PropertiesPage: React.FC = () => {
                     <div className="flex flex-col">
                       <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Beds</span>
                       <div className="flex items-center gap-1.5 font-bold text-[#141414]">
-                        <Bed size={16} className="text-gray-400" /> {property.beds || "-"}
+                        <Bed size={16} className="text-gray-400" /> {property.bedrooms || "-"}
                       </div>
                     </div>
                     <div className="flex flex-col">

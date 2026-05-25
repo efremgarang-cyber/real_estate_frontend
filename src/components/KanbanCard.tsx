@@ -10,9 +10,10 @@ interface KanbanCardProps {
   task: Lead;
   onClick: () => void;
   onRefresh: () => void;
+  onCloseDeal: () => void;
 }
 
-export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onClick, onRefresh }) => {
+export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onClick, onRefresh, onCloseDeal }) => {
   const [transitioning, setTransitioning] = useState(false);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
 
@@ -101,14 +102,14 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onClick, onRefresh
           {isUnderOffer && (
             <>
               <button 
-                onClick={(e) => handleStageTransition(e, "new")}
+                onClick={(e) => handleStageTransition(e, "closed")}
                 disabled={transitioning}
-                className="bg-gray-100 text-[#141414] rounded-xl py-2.5 px-3 flex items-center justify-center hover:bg-gray-200 transition-colors disabled:opacity-50"
+                className="flex-1 bg-green-50 hover:bg-green-100 text-green-700 rounded-xl font-bold py-2.5 text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
               >
                 <ArrowLeft size={16} />
               </button>
               <button 
-                onClick={(e) => handleStageTransition(e, "closed")}
+                onClick={(e) => { e.stopPropagation(); onCloseDeal(); }}
                 disabled={transitioning}
                 className="flex-1 bg-green-50 hover:bg-green-100 text-green-700 rounded-xl font-bold py-2.5 text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
               >
