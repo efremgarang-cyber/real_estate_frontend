@@ -66,13 +66,13 @@ export const PropertiesPage: React.FC = () => {
         </div>
         <div className="flex items-center gap-3">
           <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-100">
-            <button 
+            <button title="grid"
               onClick={() => setView("grid")}
               className={cn("p-2 rounded-lg transition-colors", view === "grid" ? "bg-gray-100 text-[#141414]" : "text-gray-400 hover:text-gray-600")}
             >
               <LayoutGrid size={18} />
             </button>
-            <button 
+            <button title="list"
               onClick={() => setView("list")}
               className={cn("p-2 rounded-lg transition-colors", view === "list" ? "bg-gray-100 text-[#141414]" : "text-gray-400 hover:text-gray-600")}
             >
