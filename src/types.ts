@@ -44,6 +44,12 @@ export interface PAGINATED_RESPONSE<T> {
 // ==========================================
 // 2. Authentication & User Workspace
 // ==========================================
+export interface RegisterPayload {
+  name: string;
+  email: string;
+  password: string;
+  agency_code: string; 
+}
 
 export interface LoginCredentials {
   email: string;
