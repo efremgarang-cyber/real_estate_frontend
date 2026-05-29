@@ -1,62 +1,130 @@
-import React, { useState } from 'react';
-import { Smartphone, ArrowRight, Home } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Smartphone, ArrowRight, Home, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { api } from '../lib/api'; 
 
-// Assuming you are using TypeScript since LoginPage was .tsx
 interface Property {
-    id: string | number; // Changed from just 'number'
+    id: string | number;
     title: string;
     location: string;
     price: string | number;
-    status: string; // Updated to accept 'Active', 'Sold', etc., from your mock data
+    status: string;
 }
 
 interface PropertyCardProps {
-    property: Property;
+    property?: Property | null; // 🟢 Made optional to safely handle null/undefined states
 }
 
+type PaymentStep = 'idle' | 'sending_stk' | 'waiting_for_pin' | 'success' | 'failed';
+
 export const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
-    const [isInitiating, setIsInitiating] = useState(false);
     const [phoneNumber, setPhoneNumber] = useState('');
+    const [paymentStep, setPaymentStep] = useState<PaymentStep>('idle');
+    const [errorMessage, setErrorMessage] = useState('');
+    const [mpesaReceipt, setMpesaReceipt] = useState('');
+    
+    const checkoutRequestIdRef = useRef<string | null>(null);
+    const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-    const handlePayment = async () => {
-        if (!phoneNumber) {
-            alert('Phone number is required.');
-            return;
-        }
+    useEffect(() => {
+        return () => stopPolling();
+    }, []);
 
-        setIsInitiating(true);
-
-        try {
-            const response = await fetch('/api/payments/initiate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    // 'Authorization': `Bearer ${token}` 
-                },
-                body: JSON.stringify({
-                    property_id: property.id,
-                    phone_number: phoneNumber
-                })
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                alert('Check your phone to enter your M-Pesa PIN.');
-                // Polling logic will trigger next
-            } else {
-                alert(`Error: ${data.message}`);
-            }
-        } catch (error) {
-            alert('Network error. Please try again.');
-        } finally {
-            setIsInitiating(false);
+    const stopPolling = () => {
+        if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
         }
     };
 
+    const startPollingStatus = (checkoutRequestId: string) => {
+        stopPolling(); 
+        
+        let attempts = 0;
+        const maxAttempts = 24; // 24 * 2.5s = 60 seconds tracking lifecycle limit
+
+        pollingIntervalRef.current = setInterval(async () => {
+            attempts++;
+            if (attempts > maxAttempts) {
+                stopPolling();
+                setErrorMessage('Transaction timed out. Please try again.');
+                setPaymentStep('failed');
+                return;
+            }
+
+            try {
+                const response = await api.get(`/payments/status/${checkoutRequestId}`);
+                const data = response.data;
+
+                if (data.success) {
+                    if (data.status === 'completed') {
+                        stopPolling();
+                        setMpesaReceipt(data.receipt_number || '');
+                        setPaymentStep('success');
+                    } else if (data.status === 'failed') {
+                        stopPolling();
+                        setErrorMessage('STK Push was cancelled or rejected by the user.');
+                        setPaymentStep('failed');
+                    }
+                }
+            } catch (error) {
+                console.warn('Polling background iteration skipped:', error);
+            }
+        }, 2500);
+    };
+
+    const handlePayment = async () => {
+        if (!phoneNumber || !property?.id) return;
+
+        setErrorMessage('');
+        setPaymentStep('sending_stk');
+
+        try {
+            const cleanPhoneNumber = phoneNumber.replace(/\+/g, '').trim();
+
+            const response = await api.post('/payments/stk-push', {
+                property_id: property.id,
+                phone_number: cleanPhoneNumber
+            });
+
+            const data = response.data;
+            const checkoutId = data.daraja?.CheckoutRequestID || data.payment?.checkout_request_id;
+
+            if ((data.success || data.daraja?.CheckoutRequestID) && checkoutId) {
+                checkoutRequestIdRef.current = checkoutId;
+                setPaymentStep('waiting_for_pin');
+                startPollingStatus(checkoutId);
+            } else {
+                setErrorMessage(data.message || 'Failed to dispatch secure request payload.');
+                setPaymentStep('failed');
+            }
+        } catch (error: any) {
+            const backendMessage = error.response?.data?.message;
+            setErrorMessage(backendMessage || 'Failed to establish backend initialization handshake.');
+            setPaymentStep('failed');
+        }
+    };
+
+    // 🟢 SKELETON FALLBACK STATE: Prevents application layout crashes if properties data is null/loading
+    if (!property) {
+        return (
+            <div className="p-8 bg-white rounded-4xl shadow-[0_20px_50px_rgba(0,0,0,0.05)] flex flex-col space-y-6 animate-pulse">
+                <div className="flex justify-between items-start">
+                    <div className="space-y-2 w-2/3">
+                        <div className="h-6 bg-gray-200 rounded-lg w-3/4"></div>
+                        <div className="h-4 bg-gray-100 rounded-lg w-1/2"></div>
+                    </div>
+                    <div className="w-12 h-12 rounded-full bg-gray-100 shrink-0"></div>
+                </div>
+                <div className="h-12 bg-gray-50 rounded-xl w-full mt-4"></div>
+            </div>
+        );
+    }
+
+    const isPropertyActive = property?.status?.toLowerCase() === 'active';
+
     return (
-        <div className="p-8 bg-white rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] flex flex-col space-y-6 font-sans">
+        <div className="p-8 bg-white rounded-4xl shadow-[0_20px_50px_rgba(0,0,0,0.05)] flex flex-col space-y-6 font-sans relative overflow-hidden">
+            
             {/* Header */}
             <div className="flex items-start justify-between">
                 <div>
@@ -68,52 +136,123 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
                 </div>
             </div>
 
-            {/* Price and Status */}
+            {/* Price Line */}
             <div className="flex justify-between items-end pb-5 border-b border-gray-100">
                 <div>
                     <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Price</p>
                     <span className="text-2xl font-bold text-[#141414]">
-                        KES {Number(property.price).toLocaleString()}
+                        KES {Number(property.price || 0).toLocaleString()}
                     </span>
                 </div>
                 
-                {/* STRICT STATUS TEXT: Clean typography, no glow, no borders */}
                 <div className="text-right">
                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Status</p>
-                     <span className={property.status === 'active' ? 'text-green-600 font-bold uppercase text-sm tracking-wider' : 'text-gray-400 font-bold uppercase text-sm tracking-wider'}>
-                        {property.status.replace('_', ' ')}
+                     <span className={isPropertyActive ? 'text-green-600 font-bold uppercase text-sm tracking-wider' : 'text-gray-400 font-bold uppercase text-sm tracking-wider'}>
+                        {property.status ? property.status.replace('_', ' ') : 'UNKNOWN'}
                     </span>
                 </div>
             </div>
 
-            {/* Payment Action */}
-            {property.status === 'active' ? (
-                <div className="pt-2 flex flex-col space-y-5">
-                    <div>
-                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                            M-Pesa Number
-                        </label>
-                        <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
-                                <Smartphone size={18} />
+            {/* Dynamic Interactive Flow Wrapper */}
+            {isPropertyActive ? (
+                <div className="min-h-35 flex flex-col justify-center">
+                    
+                    {/* STATE 1: IDLE */}
+                    {paymentStep === 'idle' && (
+                        <div className="flex flex-col space-y-5">
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                                    M-Pesa Number
+                                </label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
+                                        <Smartphone size={18} />
+                                    </div>
+                                    <input 
+                                        type="text" 
+                                        placeholder="2547XXXXXXXX" 
+                                        value={phoneNumber}
+                                        onChange={(e) => setPhoneNumber(e.target.value)}
+                                        className="w-full pl-12 pr-4 py-3.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm"
+                                    />
+                                </div>
                             </div>
-                            <input 
-                                type="text" 
-                                placeholder="2547XXXXXXXX" 
-                                value={phoneNumber}
-                                onChange={(e) => setPhoneNumber(e.target.value)}
-                                className="w-full pl-12 pr-4 py-3.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm"
-                            />
+                            <button 
+                                onClick={handlePayment} 
+                                disabled={!phoneNumber || phoneNumber.length < 10}
+                                className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#141414] hover:bg-black text-white rounded-xl font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                Pay with M-Pesa <ArrowRight size={18} />
+                            </button>
                         </div>
-                    </div>
-                    <button 
-                        onClick={handlePayment} 
-                        disabled={isInitiating || !phoneNumber}
-                        className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#141414] hover:bg-black text-white rounded-xl font-medium transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
-                    >
-                        {isInitiating ? 'Initiating Request...' : 'Pay with M-Pesa'}
-                        {!isInitiating && <ArrowRight size={18} />}
-                    </button>
+                    )}
+
+                    {/* STATE 2: SENDING STK */}
+                    {paymentStep === 'sending_stk' && (
+                        <div className="flex flex-col items-center justify-center space-y-3 py-4 text-center">
+                            <Loader2 className="w-8 h-8 text-[#141414] animate-spin" />
+                            <p className="text-sm font-semibold text-[#141414]">Connecting Secure Gateway...</p>
+                            <p className="text-xs text-gray-400">Requesting M-Pesa checkout authorization</p>
+                        </div>
+                    )}
+
+                    {/* STATE 3: WAITING FOR PIN PROGRESS PULSE */}
+                    {paymentStep === 'waiting_for_pin' && (
+                        <div className="flex flex-col items-center justify-center space-y-4 py-3 text-center bg-gray-50 rounded-2xl p-5 border border-dashed border-gray-200 animate-pulse">
+                            <div className="relative flex items-center justify-center">
+                                <div className="absolute w-12 h-12 rounded-full bg-green-100 animate-ping opacity-75"></div>
+                                <Smartphone className="w-8 h-8 text-green-600 relative z-10" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-bold text-[#141414] mb-0.5">STK Push Dispatched!</p>
+                                <p className="text-xs text-gray-500 px-2 leading-relaxed">
+                                    Check your phone screen for the prompt overlay and provide your M-Pesa PIN to finalize contract.
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[11px] font-medium text-gray-400">
+                                <Loader2 className="w-3 h-3 animate-spin" /> Awaiting validation feedback...
+                            </div>
+                        </div>
+                    )}
+
+                    {/* STATE 4: SUCCESS MATCH */}
+                    {paymentStep === 'success' && (
+                        <div className="flex flex-col items-center justify-center space-y-3 py-4 text-center text-green-600 bg-green-50/50 rounded-2xl p-5 border border-green-100">
+                            <CheckCircle2 className="w-12 h-12" />
+                            <div>
+                                <p className="text-base font-bold text-[#141414]">Payment Authenticated!</p>
+                                {mpesaReceipt && (
+                                    <p className="text-xs font-mono font-medium text-green-700 mt-1 bg-green-100/60 px-2 py-0.5 rounded">
+                                        Receipt: {mpesaReceipt}
+                                    </p>
+                                )}
+                            </div>
+                            <button 
+                                onClick={() => { setPaymentStep('idle'); setPhoneNumber(''); }}
+                                className="mt-1 text-xs font-semibold text-gray-500 hover:text-[#141414] underline underline-offset-4"
+                            >
+                                Back to property board
+                            </button>
+                        </div>
+                    )}
+
+                    {/* STATE 5: FAILED / DECLINED / USER CANCELLED */}
+                    {paymentStep === 'failed' && (
+                        <div className="flex flex-col items-center justify-center space-y-3 py-4 text-center text-red-500 bg-red-50/50 rounded-2xl p-5 border border-red-100">
+                            <XCircle className="w-11 h-11" />
+                            <div>
+                                <p className="text-sm font-bold text-[#141414]">Transaction Disrupted</p>
+                                <p className="text-xs text-gray-500 px-2 mt-1 leading-relaxed">{errorMessage}</p>
+                            </div>
+                            <button 
+                                onClick={() => setPaymentStep('idle')}
+                                className="mt-2 text-xs font-bold text-[#141414] bg-white border border-gray-200 shadow-sm px-4 py-2 rounded-xl hover:bg-gray-50 transition-colors"
+                            >
+                                Try Again
+                            </button>
+                        </div>
+                    )}
+
                 </div>
             ) : (
                 <div className="pt-2 text-center p-4 bg-gray-50 rounded-xl border border-gray-100">
@@ -122,4 +261,4 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
             )}
         </div>
     );
-}
+};

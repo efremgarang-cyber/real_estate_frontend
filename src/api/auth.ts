@@ -22,24 +22,30 @@ export interface WorkspaceResponse {
   user?: User;
 }
 
+
+
 export const authApi = {
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-    const response = await api.post<AuthResponse>('/v1/login', credentials);
+    // REMOVED 'v1/'
+    const response = await api.post<AuthResponse>('/login', credentials); 
     return response.data;
   },
 
   register: async (payload: RegisterPayload): Promise<AuthResponse> => {
-    const response = await api.post<AuthResponse>('/v1/register', payload);
+    // REMOVED 'v1/'
+    const response = await api.post<AuthResponse>('/register', payload);
     return response.data;
   },
 
   logout: async (): Promise<SuccessMessage> => {
-    const response = await api.post<SuccessMessage>('/v1/logout');
+    // REMOVED '/v1/'
+    const response = await api.post<SuccessMessage>('/logout');
     return response.data;
   },
 
   getCurrentUser: async (): Promise<{ user: User; profile: UserProfile | null }> => {
-    const response = await api.get<{ user: User; profile: UserProfile | null }>('/v1/me');
+    // REMOVED '/v1/'
+    const response = await api.get<{ user: User; profile: UserProfile | null }>('/me');
     return response.data;
   },
 
