@@ -114,8 +114,8 @@ export interface Property {
   agency_id: number;
   title: string;
   price: string; // Decimals usually arrive as strings from backend JSON
-  address: string;
-  beds: number;
+  location: string;
+  bedrooms: number;
   baths: number;
   sqft: number;
   description: string | null;

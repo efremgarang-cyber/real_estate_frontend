@@ -1013,7 +1013,7 @@ export const PropertyDetail: React.FC = () => {
               <div className="flex flex-col">
                 <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Beds</span>
                 <div className="flex items-center gap-2 font-bold text-[#141414] text-lg">
-                  <Bed size={20} className="text-gray-400" /> {property.beds || "-"}
+                  <Bed size={20} className="text-gray-400" /> {property.bedrooms || "-"}
                 </div>
               </div>
               <div className="flex flex-col">

@@ -1,14 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Smartphone, ArrowRight, Home, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+// Added Bed, Bath, and Maximize for the property specs
+import { Smartphone, ArrowRight, Home, Loader2, CheckCircle2, XCircle, Bed, Bath, Maximize } from 'lucide-react';
 import { api } from '../lib/api'; 
-
-interface Property {
-    id: string | number;
-    title: string;
-    location: string;
-    price: string | number;
-    status: string;
-}
+import { Property } from '../types';
 
 interface PropertyCardProps {
     property?: Property | null; // 🟢 Made optional to safely handle null/undefined states
@@ -129,14 +123,30 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
             <div className="flex items-start justify-between">
                 <div>
                     <h3 className="text-xl font-bold text-[#141414] mb-1">{property.title}</h3>
-                    <p className="text-sm font-medium text-gray-500">{property.location}</p>
+                    <p className="text-sm font-medium text-gray-500">{property.location || property.location || 'Location pending'}</p>
                 </div>
                 <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center text-[#141414] shrink-0">
                     <Home size={20} />
                 </div>
             </div>
 
-            {/* Price Line */}
+            {/* NEW: Property Specs (Beds, Baths, Sqft) */}
+            <div className="flex items-center gap-5 pb-5 border-b border-gray-100">
+                <div className="flex items-center gap-2 text-gray-600">
+                    <Bed size={18} className="text-gray-400" />
+                    <span className="text-sm font-semibold">{property.bedrooms || 0} <span className="font-medium text-gray-400">Beds</span></span>
+                </div>
+                <div className="flex items-center gap-2 text-gray-600">
+                    <Bath size={18} className="text-gray-400" />
+                    <span className="text-sm font-semibold">{property.baths || 0} <span className="font-medium text-gray-400">Baths</span></span>
+                </div>
+                <div className="flex items-center gap-2 text-gray-600">
+                    <Maximize size={18} className="text-gray-400" />
+                    <span className="text-sm font-semibold">{property.sqft ? property.sqft.toLocaleString() : 0} <span className="font-medium text-gray-400">Sqft</span></span>
+                </div>
+            </div>
+
+            {/* Price Line (Removed top border since the specs section now has the border-b) */}
             <div className="flex justify-between items-end pb-5 border-b border-gray-100">
                 <div>
                     <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Price</p>
