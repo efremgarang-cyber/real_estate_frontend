@@ -1,0 +1,11 @@
+<svg width="200" height="200" viewBox="0 0 200 200" role="img" xmlns="http://www.w3.org/2000/svg">
+  <title>Makao app icon</title>
+  <desc>Makao dark app icon — double arch mark on charcoal background.</desc>
+
+  <rect x="0" y="0" width="200" height="200" rx="44" fill="#141414"/>
+  <path d="M 37 148 L 37 98 Q 37 52 74 52 Q 111 52 111 98 L 111 148" fill="none" stroke="#C9A96E" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 111 148 L 111 98 Q 111 52 148 52 Q 185 52 185 98 L 185 148" fill="none" stroke="#C9A96E" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="88" y="110" width="24" height="40" rx="12" fill="#C9A96E"/>
+  <line x1="24" y1="148" x2="198" y2="148" stroke="#C9A96E" stroke-width="6" stroke-linecap="round"/>
+
+</svg>
