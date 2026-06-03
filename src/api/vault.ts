@@ -33,4 +33,28 @@ export const vaultApi = {
 
     return publicUrl;
   },
+
+  getSignedUrl: async (publicUrl: string): Promise<string> => {
+    const bucketName = import.meta.env.VITE_SUPABASE_BUCKET;
+    if (!bucketName || !publicUrl) return publicUrl;
+
+    // Detect if the URL is an unsigned Supabase URL
+    const pathMarker = `/object/public/${bucketName}/`;
+    if (!publicUrl.includes(pathMarker)) return publicUrl; // Skip if it's already signed or external
+
+    // Extract the raw file path (e.g., "makao/property_images/1780405189441.jpg")
+    const filePath = publicUrl.split(pathMarker)[1];
+
+    // Request a secure URL valid for 1 hour (3600 seconds)
+    const { data, error } = await supabase.storage
+      .from(bucketName)
+      .createSignedUrl(filePath, 3600);
+
+    if (error || !data) {
+      console.error("Failed to sign URL:", error);
+      return publicUrl; // Fallback to original if signing fails
+    }
+
+    return data.signedUrl;
+  }
 };

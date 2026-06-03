@@ -457,6 +457,7 @@ export const PropertyDetail: React.FC = () => {
 
   const [property, setProperty] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [signedImages, setSignedImages] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<ToastNotification[]>([]);
   
@@ -517,7 +518,23 @@ export const PropertyDetail: React.FC = () => {
           description: response.data.description || "",
           status: response.data.status || "active"
         });
+
+        const rawImages = response.data.images || [];
+        const realImageUrls = Array.isArray(rawImages) 
+          ? rawImages.map((img: any) => typeof img === 'object' ? img.s3_path || img.url : img).filter(Boolean)
+          : [];
+
+        const signedUrls = await Promise.all(
+          realImageUrls.map((url: string) => vaultApi.getSignedUrl(url))
+        );
+
+        setSignedImages(
+          signedUrls.length > 0 
+            ? signedUrls 
+            : ["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=1200"]
+        );
       }
+      
     } catch (err) {
       console.error("Failed to fetch property:", err);
       setError("Failed to load property details. Please try again.");
@@ -616,14 +633,23 @@ export const PropertyDetail: React.FC = () => {
     }
   };
 
+  const rawImages = property?.images || [];
+  const realImages = Array.isArray(rawImages) 
+    ? rawImages.map((img: any) => typeof img === 'object' ? img.s3_path : img).filter(Boolean)
+    : [];
+
+  const imagesToDisplay = realImages.length > 0 
+    ? realImages 
+    : ["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=1200"];
+    console.log("Property Image: ", imagesToDisplay)
+
   const handleDownloadBrochure = async () => {
     if (!property) return;
     setIsGeneratingPDF(true);
     addNotification('info', 'Generating Brochure', 'Please wait while we create your PDF brochure...');
     
     try {
-      const images = property.images?.length > 0 ? property.images : ["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=1200"];
-      const pdf = await generatePDFBrochure(property, images);
+      const pdf = await generatePDFBrochure(property, imagesToDisplay);
       pdf.save(`${property.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_brochure.pdf`);
       addNotification('success', 'Brochure Downloaded', 'Your property brochure has been successfully generated and downloaded.');
     } catch (err) {
@@ -654,7 +680,7 @@ export const PropertyDetail: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center p-12 font-sans">
         <h2 className="font-display text-2xl font-bold text-[#141414] mb-4">{error || "Property Not Found"}</h2>
-        <Link to="/properties" className="px-6 py-3 bg-[#141414] text-white rounded-xl font-medium hover:bg-black transition-colors">Back to Listings</Link>
+        <Link to="/agent/properties" className="px-6 py-3 bg-[#141414] text-white rounded-xl font-medium hover:bg-black transition-colors">Back to Listings</Link>
       </div>
     );
   }
@@ -662,7 +688,6 @@ export const PropertyDetail: React.FC = () => {
   const expirationDate = property.contract_end_date || property.expirationDate;
   const isExpired = expirationDate ? new Date(expirationDate) < new Date() : false;
   const isNearExpiry = expirationDate ? (new Date(expirationDate).getTime() - new Date().getTime()) < 7 * 24 * 60 * 60 * 1000 : false;
-  const images = property.images?.length > 0 ? property.images : ["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=1200"];
   const agent = property.agent || { name: "System Admin", email: "admin@vantage.com", phone: "+254700000000", avatar: "https://ui-avatars.com/api/?name=Admin&background=141414&color=fff" };
   const amenities = property.amenities || [];
 
@@ -681,7 +706,7 @@ export const PropertyDetail: React.FC = () => {
 
       {/* Top Action Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <Link to="/properties" className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-[#141414] transition-colors">
+        <Link to="/agent/properties" className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-[#141414] transition-colors">
           <ArrowLeft size={16} /> Back to Listings
         </Link>
         <div className="flex gap-3">
@@ -722,7 +747,7 @@ export const PropertyDetail: React.FC = () => {
           {/* Images Section */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2 aspect-[21/9] bg-gray-100 rounded-[2rem] overflow-hidden relative group">
-              <img src={images[0]} className="w-full h-full object-cover" alt={property.title} />
+              <img src={signedImages[0]} className="w-full h-full object-cover" alt={property.title} />
               
               {/* Image Edit Overlay */}
               {isEditing && (
@@ -738,7 +763,7 @@ export const PropertyDetail: React.FC = () => {
                 </div>
               )}
             </div>
-            {images.slice(1, 3).map((img: string, i: number) => (
+            {signedImages.slice(1, 3).map((img: string, i: number) => (
               <div key={i} className="aspect-video bg-gray-100 rounded-[2rem] overflow-hidden">
                 <img src={img} className="w-full h-full object-cover" alt={`extra ${i + 1}`} />
               </div>

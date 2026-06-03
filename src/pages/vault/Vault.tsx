@@ -15,10 +15,15 @@ import { api } from "../../lib/api";
 import { vaultApi } from "../../api/vault";
 import { KycDocument } from "../../types";
 
+// Extended interface to handle the temporary signed URL for the UI
+interface SecureKycDocument extends KycDocument {
+  signedUrl?: string;
+}
+
 export const VaultPage: React.FC = () => {
   const { profile } = useAuth();
-  const [docs, setDocs]               = useState<KycDocument[]>([]);
-  const [selectedDoc, setSelectedDoc] = useState<KycDocument | null>(null);
+  const [docs, setDocs]               = useState<SecureKycDocument[]>([]);
+  const [selectedDoc, setSelectedDoc] = useState<SecureKycDocument | null>(null);
   const [searchTerm, setSearchTerm]   = useState("");
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [loading, setLoading]         = useState(true);
@@ -27,8 +32,19 @@ export const VaultPage: React.FC = () => {
   const fetchDocuments = async () => {
     setLoading(true);
     try {
-      const response = await api.get<{ data: KycDocument[] }>('/v1/vault/documents');
-      setDocs(response.data.data || []);
+      const response = await api.get('/v1/vault/documents');
+      const data = response.data?.data || response.data || [];
+      
+      // Batch sign all secure document URLs from the database
+      const signedDocs = await Promise.all(
+        data.map(async (doc: any) => {
+          const rawUrl = doc.s3_path || doc.url || doc.file_path;
+          const signedUrl = rawUrl ? await vaultApi.getSignedUrl(rawUrl) : undefined;
+          return { ...doc, signedUrl };
+        })
+      );
+
+      setDocs(signedDocs);
     } catch (error) {
       console.error("Failed to load vault documents:", error);
     } finally {
@@ -58,12 +74,14 @@ export const VaultPage: React.FC = () => {
         secureDocType = 'property_image';
       }
 
+      // Step 1: Upload to secure Supabase bucket
       const supabaseUrl = await vaultApi.executeSecureUpload(
         payload.file,
         secureDocType
       );
 
-      const response = await api.post('/vault/documents', {
+      // Step 2: Persist in the database (ensure endpoint matches your Laravel route)
+      const response = await api.post('/v1/vault/documents', {
         s3_path:  supabaseUrl,
         type:     payload.type,
         user_id:  payload.userId  ?? null,
@@ -71,7 +89,12 @@ export const VaultPage: React.FC = () => {
         status:   'pending_review',
       });
 
-      setDocs(prev => [response.data.data, ...prev]);
+      const newDoc = response.data?.data || response.data;
+      
+      // Step 3: Immediately sign the new URL so it can be viewed without refreshing
+      const signedUrl = await vaultApi.getSignedUrl(supabaseUrl);
+
+      setDocs(prev => [{ ...newDoc, signedUrl }, ...prev]);
       setShowUploadModal(false);
     } catch (error: any) {
       console.error("Document upload failed:", error);
@@ -189,25 +212,10 @@ export const VaultPage: React.FC = () => {
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-[0_10px_30px_rgba(0,0,0,0.02)]">
-          <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-6">Storage Utilization</h4>
-          <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden mb-3">
-            <div className="bg-[#141414] h-full w-[65%] rounded-full" />
-          </div>
-          <p className="text-sm font-medium text-gray-500">65GB / 100GB Allocated</p>
-        </div>
-        <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-[0_10px_30px_rgba(0,0,0,0.02)]">
-          <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Verification Velocity</h4>
-          <p className="text-3xl font-bold text-[#141414]">2.4h</p>
-          <p className="text-sm font-medium text-gray-500 mt-2">Avg extraction performance per document</p>
-        </div>
-      </div>
-
       <AnimatePresence>
         {selectedDoc && (
           <DocumentViewer
-            doc={selectedDoc}
+            doc={selectedDoc} // `selectedDoc.signedUrl` will now be passed automatically to your viewer
             onClose={() => setSelectedDoc(null)}
             onUpdateStatus={async (status: any) => {
               await api.patch(`/v1/vault/documents/${selectedDoc.id}/status`, { status });

@@ -49,6 +49,7 @@ export interface RegisterPayload {
   email: string;
   password: string;
   agency_code: string; 
+  role?: string;
 }
 
 export interface LoginCredentials {
@@ -105,8 +106,10 @@ export type PropertyStatus = 'Active' | 'Pending' | 'Sold' | 'Expired';
 export interface PropertyImage {
   id: number;
   property_id: number;
-  url: string;
+  s3_path: string;
+  is_primary: number;
   created_at: string;
+  updated_at: string;
 }
 
 export interface Property {

@@ -2,3 +2,4 @@ search functionality
 client endpoint
 scanning functionality
 uploads
+caching: prevent calling the server each time you switch pages

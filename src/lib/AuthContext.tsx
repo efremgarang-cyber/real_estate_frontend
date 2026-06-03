@@ -7,7 +7,7 @@ interface AuthContextType {
   profile: UserProfile | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, displayName: string, agencyCode: string) => Promise<void>;
+  register: (email: string, password: string, displayName: string, agencyCode: string, role?: string) => Promise<void>;
   logout: () => Promise<void>;
   createAgencyAndProfile: (agencyName: string, role: "Admin" | "Agent") => Promise<void>;
   joinAgency: (joinCode: string) => Promise<void>;
@@ -62,7 +62,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     email: string,
     password: string,
     displayName: string,
-    agencyCode: string
+    agencyCode: string,
+    role?: string
   ) => {
     try {
       const data = await authApi.register({
@@ -70,6 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         password,
         name: displayName,
         agency_code: agencyCode,
+        role: role || 'client'
       });
       localStorage.setItem("token", data.token);
       setUser(data.user);

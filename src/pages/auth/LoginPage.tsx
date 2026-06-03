@@ -9,6 +9,7 @@ export const LoginPage: React.FC = () => {
 
   // Auth form state
   const [isSignUp, setIsSignUp]             = useState(false);
+  const [accountType, setAccountType]       = useState<'client' | 'agent'>('client');
   const [name, setName]                     = useState("");
   const [email, setEmail]                   = useState("");
   const [password, setPassword]             = useState("");
@@ -22,13 +23,23 @@ export const LoginPage: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [agencyError, setAgencyError]   = useState<string | null>(null);
 
+  // Intelligent Routing based on Profile Role
   useEffect(() => {
-    if (user && profile) navigate("/properties", { replace: true });
+    if (user && profile) {
+      const role = profile.role?.toLowerCase() || 'client';
+      if (role === 'admin') {
+        navigate("/admin", { replace: true });
+      } else if (role === 'agent') {
+        navigate("/agent/dashboard", { replace: true });
+      } else {
+        navigate("/client/marketplace", { replace: true });
+      }
+    }
   }, [user, profile, navigate]);
 
   useEffect(() => {
     setAuthError(null);
-  }, [isSignUp]);
+  }, [isSignUp, accountType]);
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,9 +47,16 @@ export const LoginPage: React.FC = () => {
     setAuthError(null);
     try {
       if (isSignUp) {
-        await register(email, password, name, agencyCode);
+        await register(
+          email, 
+          password, 
+          name, 
+          accountType === 'agent' ? agencyCode : "", 
+          accountType
+        );
       } else {
         await login(email, password);
+        navigate("/agent/dashboard");
       }
     } catch (error: any) {
       const message =
@@ -90,6 +108,31 @@ export const LoginPage: React.FC = () => {
           <form onSubmit={handleAuthSubmit} className="space-y-5 text-left">
             {isSignUp && (
               <>
+                <div className="flex gap-4 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => setAccountType('client')}
+                    className={`flex-1 py-3 text-xs font-semibold rounded-xl transition-colors border ${
+                      accountType === 'client' 
+                        ? 'bg-[#141414] text-white border-[#141414] shadow-sm' 
+                        : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    Client / Buyer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAccountType('agent')}
+                    className={`flex-1 py-3 text-xs font-semibold rounded-xl transition-colors border ${
+                      accountType === 'agent' 
+                        ? 'bg-[#141414] text-white border-[#141414] shadow-sm' 
+                        : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    Agent / Broker
+                  </button>
+                </div>
+
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
                     Full Name
@@ -103,19 +146,21 @@ export const LoginPage: React.FC = () => {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                    Agency Code <span className="text-gray-400 font-normal lowercase">(optional)</span>
-                  </label>
-                  <input
-                    type="text" maxLength={12}
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all font-mono tracking-widest uppercase"
-                    placeholder="MAKAO-2026"
-                    value={agencyCode}
-                    onChange={(e) => { setAgencyCode(e.target.value.toUpperCase()); if (authError) setAuthError(null); }}
-                  />
-                  <p className="text-xs text-gray-400 mt-1.5">Ask your Agency Admin for this code.</p>
-                </div>
+                {accountType === 'agent' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                      Agency Code <span className="text-gray-400 font-normal lowercase">(optional)</span>
+                    </label>
+                    <input
+                      type="text" maxLength={12}
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all font-mono tracking-widest uppercase"
+                      placeholder="MAKAO-2026"
+                      value={agencyCode}
+                      onChange={(e) => { setAgencyCode(e.target.value.toUpperCase()); if (authError) setAuthError(null); }}
+                    />
+                    <p className="text-xs text-gray-400 mt-1.5">Ask your Agency Admin for this code.</p>
+                  </div>
+                )}
               </>
             )}
 

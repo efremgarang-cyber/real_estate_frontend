@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { formatCurrency, cn } from "../../lib/utils";
 import { propertyApi } from "../../api/properties"; 
+import { vaultApi } from "../../api/vault";
 import { AnimatePresence } from "motion/react";
 import { NewListingModal } from "../../components/NewListingModal";
 
@@ -25,42 +26,6 @@ const KENYAN_PROPERTY_IMAGE_MAP: Record<string, string> = {
   karen: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=1200&auto=format&fit=crop",    // High-end residential estate
   kilimani: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?q=80&w=1200&auto=format&fit=crop", // Premium residential apartments
   default: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=1200&auto=format&fit=crop"
-};
-
-/**
- * Dynamic utility to parse asset attributes and serve contextual imagery
- * Defensively patched to safely parse local disk base64 strings, nested object maps, or raw URLs
- */
-const resolvePropertyImage = (property: any): string => {
-  if (property?.images && Array.isArray(property.images) && property.images.length > 0) {
-    const primaryImage = property.images[0];
-    
-    // Handle standard string structures (URLs or Base64 local files data streams)
-    if (typeof primaryImage === "string") {
-      if (primaryImage.startsWith("data:image") || primaryImage.startsWith("http")) {
-        return primaryImage;
-      }
-      if (!primaryImage.includes("placeholder")) {
-        return primaryImage.startsWith("/") ? primaryImage : `/${primaryImage}`;
-      }
-    } 
-    // Handle object mapping variations from APIs (e.g., { url: '...' })
-    else if (primaryImage && typeof primaryImage === "object") {
-      const fallbackUrl = primaryImage.url || primaryImage.image_path || primaryImage.file_path;
-      if (fallbackUrl) return fallbackUrl;
-    }
-  }
-  
-  // High-fidelity keyword fallbacks if no explicit custom upload is found
-  const searchString = `${property?.title || ""} ${property?.location || ""} ${property?.neighborhood || ""}`.toLowerCase();
-  
-  if (searchString.includes("kitisuru")) return KENYAN_PROPERTY_IMAGE_MAP.kitisuru;
-  if (searchString.includes("muthaiga") || searchString.includes("oribi")) return KENYAN_PROPERTY_IMAGE_MAP.muthaiga;
-  if (searchString.includes("milimani")) return KENYAN_PROPERTY_IMAGE_MAP.milimani;
-  if (searchString.includes("karen")) return KENYAN_PROPERTY_IMAGE_MAP.karen;
-  if (searchString.includes("kilimani")) return KENYAN_PROPERTY_IMAGE_MAP.kilimani;
-  
-  return KENYAN_PROPERTY_IMAGE_MAP.default;
 };
 
 export const PropertiesPage: React.FC = () => {
@@ -75,7 +40,7 @@ export const PropertiesPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [triggerRefresh, setTriggerRefresh] = useState(0);
 
-  // Synchronize database records from backend API
+  // Synchronize database records from backend API and securely sign images
   useEffect(() => {
     const fetchProperties = async () => {
       setIsLoading(true);
@@ -83,7 +48,45 @@ export const PropertiesPage: React.FC = () => {
       try {
         const response = await propertyApi.getAll(page);
         const items = response.data || []; 
-        setProperties(Array.isArray(items) ? items : []);
+
+        // Batch process: extract database paths, sign URLs via vault, and map fallbacks
+        const processedItems = await Promise.all(
+          (Array.isArray(items) ? items : []).map(async (property: any) => {
+            let rawUrl: string | null = null;
+
+            // Robust extraction handling both raw string arrays and relational objects
+            if (property?.images && Array.isArray(property.images) && property.images.length > 0) {
+              const primaryImage = property.images[0];
+              if (typeof primaryImage === "string") {
+                rawUrl = primaryImage;
+              } else if (typeof primaryImage === "object" && primaryImage !== null) {
+                // Extracts the s3_path aligned with your database structure
+                rawUrl = primaryImage.s3_path || primaryImage.url || primaryImage.file_path;
+              }
+            }
+
+            let finalUrl = "";
+
+            if (rawUrl) {
+              // Sign the URL so the private bucket allows rendering
+              finalUrl = await vaultApi.getSignedUrl(rawUrl);
+            } else {
+              // High-fidelity keyword fallbacks if no image exists in DB
+              const searchString = `${property?.title || ""} ${property?.location || ""} ${property?.neighborhood || ""}`.toLowerCase();
+              if (searchString.includes("kitisuru")) finalUrl = KENYAN_PROPERTY_IMAGE_MAP.kitisuru;
+              else if (searchString.includes("muthaiga") || searchString.includes("oribi")) finalUrl = KENYAN_PROPERTY_IMAGE_MAP.muthaiga;
+              else if (searchString.includes("milimani")) finalUrl = KENYAN_PROPERTY_IMAGE_MAP.milimani;
+              else if (searchString.includes("karen")) finalUrl = KENYAN_PROPERTY_IMAGE_MAP.karen;
+              else if (searchString.includes("kilimani")) finalUrl = KENYAN_PROPERTY_IMAGE_MAP.kilimani;
+              else finalUrl = KENYAN_PROPERTY_IMAGE_MAP.default;
+            }
+
+            // Inject securely resolved image into memory
+            return { ...property, _signedMainImage: finalUrl };
+          })
+        );
+
+        setProperties(processedItems);
       } catch (err) {
         console.error("Failed to fetch properties portfolio:", err);
         setError("Unable to load the property portfolio. Please check your connection.");
@@ -186,14 +189,14 @@ export const PropertiesPage: React.FC = () => {
           view === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
         )}>
           {filteredProperties.map((property) => {
-            const resolvedImage = resolvePropertyImage(property);
+            const resolvedImage = property._signedMainImage || KENYAN_PROPERTY_IMAGE_MAP.default;
             const expiration = property.contract_end_date || property.expirationDate || "Not set";
             const isActive = property.status === "active" || property.status === "Active" || property.status === "active_listing";
 
             return (
               <Link 
                 key={property.id} 
-                to={`/properties/${property.id}`}
+                to={`/agent/properties/${property.id}`}
                 className={cn(
                   "bg-white rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.02)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.07)] transition-all p-5 flex flex-col group border border-gray-50",
                   view === "list" && "md:flex-row md:items-center md:gap-8"

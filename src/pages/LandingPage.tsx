@@ -13,6 +13,7 @@ import {
   Mail,
 } from "lucide-react";
 import { formatCurrency } from "../lib/utils";
+import { vaultApi } from "../api/vault";
 import { propertyApi } from "../api/properties";
 import { Property } from "../types";
 
@@ -28,11 +29,26 @@ export const LandingPage: React.FC = () => {
       try {
         const response = await propertyApi.getAll();
         const data = response.data || [];
-        setProperties(
-          data
-            .filter((p: Property) => p.status?.toLowerCase() === "active")
-            .slice(0, 6)
+
+        const activeListings = data.filter((p: Property) => p.status?.toLowerCase() === "active").slice(0, 6);
+        const signedListings = await Promise.all(
+          activeListings.map(async (property: Property) => {
+            const firstImageEntry = property.images?.[0];
+            const rawUrl = typeof firstImageEntry === 'object' && firstImageEntry !== null
+              ? (firstImageEntry as any).s3_path || (firstImageEntry as any).url 
+              : (firstImageEntry as string);
+              
+            // Await the signed URL from Supabase
+            const signedUrl = rawUrl 
+              ? await vaultApi.getSignedUrl(rawUrl) 
+              : "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=600";
+              
+            // Temporarily inject the signed URL into the property object for the UI
+            return { ...property, _signedMainImage: signedUrl };
+          })
         );
+
+        setProperties(signedListings);
       } catch (error) {
         console.error("Failed to fetch public listings:", error);
       } finally {
@@ -45,9 +61,9 @@ export const LandingPage: React.FC = () => {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchTerm.trim()) {
-      navigate(`/client/marketplace?search=${encodeURIComponent(searchTerm.trim())}`);
+      navigate(`/?search=${encodeURIComponent(searchTerm.trim())}`);
     } else {
-      navigate("/client/marketplace");
+      navigate("/");
     }
   };
 
@@ -89,28 +105,28 @@ export const LandingPage: React.FC = () => {
 
           <nav className="hidden md:flex items-center gap-8 text-white text-sm font-medium">
             <button
-              onClick={() => navigate("/client/marketplace")}
+              onClick={() => navigate("/")}
               className="hover:text-[#D4AF37] transition-colors"
             >
               Buy
             </button>
             <button
-              onClick={() => navigate("/client/marketplace")}
+              onClick={() => navigate("/")}
               className="hover:text-[#D4AF37] transition-colors"
             >
               Rent
             </button>
             <button
-              onClick={() => navigate("/client/marketplace")}
+              onClick={() => navigate("/")}
               className="hover:text-[#D4AF37] transition-colors"
             >
               Developments
             </button>
             <button
-              onClick={() => navigate("/agent/dashboard")}
+              onClick={() => navigate("/login")}
               className="bg-[#D4AF37] text-[#141414] px-6 py-2.5 font-bold uppercase tracking-wider text-xs hover:bg-white transition-colors"
             >
-              Agent Portal
+              Get Started
             </button>
           </nav>
         </header>
@@ -172,7 +188,7 @@ export const LandingPage: React.FC = () => {
             <div className="w-16 h-0.5 bg-[#D4AF37] mt-4" />
           </div>
           <button
-            onClick={() => navigate("/client/marketplace")}
+            onClick={() => navigate("/")}
             className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#141414] hover:text-[#D4AF37] transition-colors"
           >
             View All <ArrowRight size={14} />
@@ -197,17 +213,12 @@ export const LandingPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {properties.map((property) => {
               const firstImage = property.images?.[0];
-              const mainImage =
-                typeof firstImage === "string"
-                  ? firstImage
-                  : (firstImage as any)?.s3_path ||
-                    (firstImage as any)?.url ||
-                    "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=600";
-
+              const mainImage = (property as any)._signedMainImage;
+              
               return (
                 <div
                   key={property.id}
-                  onClick={() => navigate(`/client/marketplace/${property.id}`)}
+                  onClick={() => navigate(`//${property.id}`)}
                   className="group cursor-pointer flex flex-col bg-white border border-gray-100 hover:border-[#D4AF37] hover:shadow-xl transition-all duration-300"
                 >
                   <div className="aspect-[4/3] overflow-hidden relative bg-gray-100">
@@ -329,9 +340,9 @@ export const LandingPage: React.FC = () => {
               </span>
               <span
                 className="cursor-pointer hover:text-[#D4AF37] transition-colors"
-                onClick={() => navigate("/agent/dashboard")}
+                onClick={() => navigate("/login")}
               >
-                Agent Portal
+                Get Started
               </span>
               <span className="cursor-pointer hover:text-[#D4AF37] transition-colors">
                 KYC Verification
