@@ -26,10 +26,10 @@ import {
   Save,
   Image as ImageIcon
 } from "lucide-react";
-import { formatCurrency, cn } from "../../lib/utils";
-import { propertyApi } from "../../api/properties";
-import { vaultApi } from "../../api/vault";
-import { api } from "../../lib/api";
+import { formatCurrency, cn } from "../../../lib/utils";
+import { propertyApi } from "../../../api/properties";
+import { vaultApi } from "../../../api/vault";
+import { api } from "../../../lib/api";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 

@@ -7,13 +7,13 @@ import {
   Loader2
 } from "lucide-react";
 import { AnimatePresence } from "motion/react";
-import { useAuth } from "../../lib/AuthContext";
-import { StatusText } from "../../components/StatusText";
-import { DocumentUploadModal } from "../../components/DocumentUploadModal";
-import { DocumentViewer } from "../../components/DocumentViewer";
-import { api } from "../../lib/api";
-import { vaultApi } from "../../api/vault";
-import { KycDocument } from "../../types";
+import { useAuth } from "../../../lib/AuthContext";
+import { StatusText } from "../../../components/StatusText";
+import { DocumentUploadModal } from "../../../components/DocumentUploadModal";
+import { DocumentViewer } from "../../../components/DocumentViewer";
+import { api } from "../../../lib/api";
+import { vaultApi } from "../../../api/vault";
+import { KycDocument } from "../../../types";
 
 // Extended interface to handle the temporary signed URL for the UI
 interface SecureKycDocument extends KycDocument {

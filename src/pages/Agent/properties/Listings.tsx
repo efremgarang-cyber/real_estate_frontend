@@ -12,11 +12,11 @@ import {
   Calendar,
   Loader2
 } from "lucide-react";
-import { formatCurrency, cn } from "../../lib/utils";
-import { propertyApi } from "../../api/properties"; 
-import { vaultApi } from "../../api/vault";
+import { formatCurrency, cn } from "../../../lib/utils";
+import { propertyApi } from "../../../api/properties"; 
+import { vaultApi } from "../../../api/vault";
 import { AnimatePresence } from "motion/react";
-import { NewListingModal } from "../../components/NewListingModal";
+import { NewListingModal } from "../../../components/NewListingModal";
 
 // High-fidelity curated Kenyan architectural imagery dictionary
 const KENYAN_PROPERTY_IMAGE_MAP: Record<string, string> = {
