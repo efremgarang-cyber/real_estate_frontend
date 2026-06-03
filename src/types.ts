@@ -134,11 +134,15 @@ export interface CreatePropertyPayload {
   baths: number;
   sqft: number;
   description?: string;
+  images?: string[];
   status?: PropertyStatus;
   expires_at?: string;
 }
 
-export type UpdatePropertyPayload = Partial<CreatePropertyPayload>;
+export interface UpdatePropertyPayload extends Partial<CreatePropertyPayload> {
+  // If you defined UpdatePropertyPayload separately, add it here too:
+  images?: string[]; // 👈 ADD THIS LINE
+}
 
 // ==========================================
 // 5. CRM Pipeline & Kanban Leads

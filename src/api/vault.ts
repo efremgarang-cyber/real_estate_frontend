@@ -1,42 +1,36 @@
-import { api } from '../lib/api';
-import axios from 'axios';
-import { PresignedUrlRequest, PresignedUrlResponse } from '../types';
+import { supabase } from "../lib/supabase";
 
 export const vaultApi = {
-  /**
-   * 1. Get a secure AWS pre-signed upload URL from Laravel
-   */
-  getPresignedUploadUrl: async (payload: PresignedUrlRequest): Promise<PresignedUrlResponse> => {
-    const response = await api.post<PresignedUrlResponse>('/v1/vault/presigned-upload-url', payload);
-    return response.data;
-  },
+  executeSecureUpload: async (file: File, documentType: 'kyc' | 'title_deed' | 'property_image'): Promise<string> => {
+    const bucketName = import.meta.env.VITE_SUPABASE_BUCKET;
+    
+    if (!bucketName) {
+        throw new Error('Storage bucket name is missing from environment variables.');
+    }
 
-  /**
-   * 2. Upload file binary directly to S3 storage bucket using the retrieved URL
-   */
-  uploadFileToS3: async (presignedUrl: string, file: File, mimeType: string): Promise<void> => {
-    await axios.put(presignedUrl, file, {
-      headers: {
-        'Content-Type': mimeType,
-      },
-    });
-  },
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+    
+    // Nests Makao uploads in a dedicated folder to separate them from Drive X files
+    const filePath = `makao/${documentType}s/${fileName}`; 
 
-  /**
-   * Orchestrated workflow execution helper
-   */
-  executeSecureUpload: async (file: File, documentType: 'kyc' | 'title_deed'): Promise<string> => {
-    // Step 1: Request upload token & destination path
-    const { upload_url, file_path } = await vaultApi.getPresignedUploadUrl({
-      file_name: file.name,
-      mime_type: file.type,
-      document_type: documentType,
-    });
+    const { error } = await supabase.storage
+      .from(bucketName) 
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: file.type
+      });
 
-    // Step 2: Upload raw binary directly to S3 bucket storage bypass
-    await vaultApi.uploadFileToS3(upload_url, file, file.type);
+    if (error) {
+      console.error('Supabase upload error:', error);
+      throw new Error('Failed to upload file to storage bucket.');
+    }
 
-    // Return S3 object reference key back for backend database persistence mapping
-    return file_path;
+    const { data: { publicUrl } } = supabase.storage
+      .from(bucketName)
+      .getPublicUrl(filePath);
+
+    return publicUrl;
   },
 };

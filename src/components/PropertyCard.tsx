@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-// Added Bed, Bath, and Maximize for the property specs
-import { Smartphone, ArrowRight, Home, Loader2, CheckCircle2, XCircle, Bed, Bath, Maximize } from 'lucide-react';
+import { Smartphone, ArrowRight, Home, Loader2, CheckCircle2, XCircle, Bed, Bath, Maximize, FileDown } from 'lucide-react';
 import { api } from '../lib/api'; 
 import { Property } from '../types';
 
 interface PropertyCardProps {
-    property?: Property | null; // 🟢 Made optional to safely handle null/undefined states
+    property?: Property | null;
 }
 
 type PaymentStep = 'idle' | 'sending_stk' | 'waiting_for_pin' | 'success' | 'failed';
@@ -34,7 +33,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
         stopPolling(); 
         
         let attempts = 0;
-        const maxAttempts = 24; // 24 * 2.5s = 60 seconds tracking lifecycle limit
+        const maxAttempts = 24; 
 
         pollingIntervalRef.current = setInterval(async () => {
             attempts++;
@@ -98,7 +97,18 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
         }
     };
 
-    // 🟢 SKELETON FALLBACK STATE: Prevents application layout crashes if properties data is null/loading
+    const handleDownloadBrochure = () => {
+        // Assumes your API/backend provides a 'brochure_url' or similar field
+        // @ts-ignore - adjust based on your exact Property type definition
+        const brochureUrl = property?.brochure_url || property?.brochureUrl;
+        
+        if (brochureUrl) {
+            window.open(brochureUrl, '_blank');
+        } else {
+            alert('A brochure is not currently available for this property.');
+        }
+    };
+
     if (!property) {
         return (
             <div className="p-8 bg-white rounded-4xl shadow-[0_20px_50px_rgba(0,0,0,0.05)] flex flex-col space-y-6 animate-pulse">
@@ -119,7 +129,6 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
     return (
         <div className="p-8 bg-white rounded-4xl shadow-[0_20px_50px_rgba(0,0,0,0.05)] flex flex-col space-y-6 font-sans relative overflow-hidden">
             
-            {/* Header */}
             <div className="flex items-start justify-between">
                 <div>
                     <h3 className="text-xl font-bold text-[#141414] mb-1">{property.title}</h3>
@@ -130,15 +139,14 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
                 </div>
             </div>
 
-            {/* NEW: Property Specs (Beds, Baths, Sqft) */}
             <div className="flex items-center gap-5 pb-5 border-b border-gray-100">
                 <div className="flex items-center gap-2 text-gray-600">
                     <Bed size={18} className="text-gray-400" />
-                    <span className="text-sm font-semibold">{property.bedrooms || 0} <span className="font-medium text-gray-400">Beds</span></span>
+                    <span className="text-sm font-semibold">{property.bedrooms || property.bedrooms || 0} <span className="font-medium text-gray-400">Beds</span></span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-600">
                     <Bath size={18} className="text-gray-400" />
-                    <span className="text-sm font-semibold">{property.baths || 0} <span className="font-medium text-gray-400">Baths</span></span>
+                    <span className="text-sm font-semibold">{property.baths || property.baths || 0} <span className="font-medium text-gray-400">Baths</span></span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-600">
                     <Maximize size={18} className="text-gray-400" />
@@ -146,7 +154,6 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
                 </div>
             </div>
 
-            {/* Price Line (Removed top border since the specs section now has the border-b) */}
             <div className="flex justify-between items-end pb-5 border-b border-gray-100">
                 <div>
                     <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Price</p>
@@ -163,11 +170,17 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
                 </div>
             </div>
 
-            {/* Dynamic Interactive Flow Wrapper */}
+            {/* NEW: Download Brochure Action */}
+            <button 
+                onClick={handleDownloadBrochure}
+                className="w-full flex items-center justify-center gap-2 py-3 bg-white border border-gray-200 hover:border-gray-300 text-[#141414] rounded-xl font-medium transition-colors"
+            >
+                <FileDown size={18} /> Download Brochure
+            </button>
+
             {isPropertyActive ? (
-                <div className="min-h-35 flex flex-col justify-center">
+                <div className="min-h-35 flex flex-col justify-center border-t border-gray-100 pt-5">
                     
-                    {/* STATE 1: IDLE */}
                     {paymentStep === 'idle' && (
                         <div className="flex flex-col space-y-5">
                             <div>
@@ -197,7 +210,6 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
                         </div>
                     )}
 
-                    {/* STATE 2: SENDING STK */}
                     {paymentStep === 'sending_stk' && (
                         <div className="flex flex-col items-center justify-center space-y-3 py-4 text-center">
                             <Loader2 className="w-8 h-8 text-[#141414] animate-spin" />
@@ -206,7 +218,6 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
                         </div>
                     )}
 
-                    {/* STATE 3: WAITING FOR PIN PROGRESS PULSE */}
                     {paymentStep === 'waiting_for_pin' && (
                         <div className="flex flex-col items-center justify-center space-y-4 py-3 text-center bg-gray-50 rounded-2xl p-5 border border-dashed border-gray-200 animate-pulse">
                             <div className="relative flex items-center justify-center">
@@ -225,7 +236,6 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
                         </div>
                     )}
 
-                    {/* STATE 4: SUCCESS MATCH */}
                     {paymentStep === 'success' && (
                         <div className="flex flex-col items-center justify-center space-y-3 py-4 text-center text-green-600 bg-green-50/50 rounded-2xl p-5 border border-green-100">
                             <CheckCircle2 className="w-12 h-12" />
@@ -246,7 +256,6 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
                         </div>
                     )}
 
-                    {/* STATE 5: FAILED / DECLINED / USER CANCELLED */}
                     {paymentStep === 'failed' && (
                         <div className="flex flex-col items-center justify-center space-y-3 py-4 text-center text-red-500 bg-red-50/50 rounded-2xl p-5 border border-red-100">
                             <XCircle className="w-11 h-11" />
@@ -265,7 +274,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
 
                 </div>
             ) : (
-                <div className="pt-2 text-center p-4 bg-gray-50 rounded-xl border border-gray-100">
+                <div className="pt-2 text-center p-4 bg-gray-50 rounded-xl border border-gray-100 mt-5">
                     <p className="text-sm font-medium text-gray-500">This property is no longer available for purchase.</p>
                 </div>
             )}
