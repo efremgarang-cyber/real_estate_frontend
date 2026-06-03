@@ -123,7 +123,7 @@ export const LandingPage: React.FC = () => {
               Developments
             </button>
             <button
-              onClick={() => navigate("/login")}
+              onClick={() => navigate("/auth/login")}
               className="bg-[#D4AF37] text-[#141414] px-6 py-2.5 font-bold uppercase tracking-wider text-xs hover:bg-white transition-colors"
             >
               Get Started
@@ -340,7 +340,7 @@ export const LandingPage: React.FC = () => {
               </span>
               <span
                 className="cursor-pointer hover:text-[#D4AF37] transition-colors"
-                onClick={() => navigate("/login")}
+                onClick={() => navigate("/auth/login")}
               >
                 Get Started
               </span>

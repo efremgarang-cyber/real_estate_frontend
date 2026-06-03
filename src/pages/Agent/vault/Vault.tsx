@@ -1,13 +1,7 @@
-import React, { useState, useEffect } from "react";
-import { 
-  FileText, 
-  Search,
-  Filter,
-  Plus,
-  Loader2
-} from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { FileText, Search, Filter, Plus, Loader2 } from "lucide-react";
 import { AnimatePresence } from "motion/react";
-import { useAuth } from "../../../lib/AuthContext";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { StatusText } from "../../../components/StatusText";
 import { DocumentUploadModal } from "../../../components/DocumentUploadModal";
 import { DocumentViewer } from "../../../components/DocumentViewer";
@@ -15,96 +9,77 @@ import { api } from "../../../lib/api";
 import { vaultApi } from "../../../api/vault";
 import { KycDocument } from "../../../types";
 
-// Extended interface to handle the temporary signed URL for the UI
 interface SecureKycDocument extends KycDocument {
   signedUrl?: string;
 }
 
 export const VaultPage: React.FC = () => {
-  const { profile } = useAuth();
-  const [docs, setDocs]               = useState<SecureKycDocument[]>([]);
+  const queryClient = useQueryClient();
   const [selectedDoc, setSelectedDoc] = useState<SecureKycDocument | null>(null);
   const [searchTerm, setSearchTerm]   = useState("");
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [loading, setLoading]         = useState(true);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const fetchDocuments = async () => {
-    setLoading(true);
-    try {
+  // 1. Fetch & Auto-sign Vault Documents
+  const { data: docs = [], isLoading } = useQuery({
+    queryKey: ['vaultDocuments'],
+    queryFn: async () => {
       const response = await api.get('/vault/documents');
       const data = response.data?.data || response.data || [];
       
-      // Batch sign all secure document URLs from the database
-      const signedDocs = await Promise.all(
+      return await Promise.all(
         data.map(async (doc: any) => {
           const rawUrl = doc.s3_path || doc.url || doc.file_path;
           const signedUrl = rawUrl ? await vaultApi.getSignedUrl(rawUrl) : undefined;
           return { ...doc, signedUrl };
         })
       );
-
-      setDocs(signedDocs);
-    } catch (error) {
-      console.error("Failed to load vault documents:", error);
-    } finally {
-      setLoading(false);
     }
-  };
+  });
 
-  useEffect(() => { fetchDocuments(); }, []);
-
-  const filteredDocs = docs.filter(doc =>
-    doc.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (doc.userId || "").toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const handleDocumentSave = async (payload: {
-    file: File;
-    type: string;
-    userId?: string;
-    notes?: string;
-  }) => {
-    setUploadError(null);
-    try {
+  // 2. Mutations
+  const uploadMutation = useMutation({
+    mutationFn: async (payload: { file: File; type: string; userId?: string; notes?: string; }) => {
       let secureDocType: 'kyc' | 'title_deed' | 'property_image' = 'kyc';
-      if (payload.type === 'title_deed') {
-        secureDocType = 'title_deed';
-      } else if (payload.type === 'property_image') {
-        secureDocType = 'property_image';
-      }
+      if (payload.type === 'title_deed') secureDocType = 'title_deed';
+      else if (payload.type === 'property_image') secureDocType = 'property_image';
 
-      // Step 1: Upload to secure Supabase bucket
-      const supabaseUrl = await vaultApi.executeSecureUpload(
-        payload.file,
-        secureDocType
-      );
-
-      // Step 2: Persist in the database (ensure endpoint matches your Laravel route)
-      const response = await api.post('/vault/documents', {
+      const supabaseUrl = await vaultApi.executeSecureUpload(payload.file, secureDocType);
+      await api.post('/vault/documents', {
         s3_path:  supabaseUrl,
         type:     payload.type,
         user_id:  payload.userId  ?? null,
         notes:    payload.notes   ?? null,
         status:   'pending_review',
       });
-
-      const newDoc = response.data?.data || response.data;
-      
-      // Step 3: Immediately sign the new URL so it can be viewed without refreshing
-      const signedUrl = await vaultApi.getSignedUrl(supabaseUrl);
-
-      setDocs(prev => [{ ...newDoc, signedUrl }, ...prev]);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vaultDocuments'] });
       setShowUploadModal(false);
-    } catch (error: any) {
+      setUploadError(null);
+    },
+    onError: (error: any) => {
       console.error("Document upload failed:", error);
-      setUploadError(
-        error?.response?.data?.message ||
-        error?.message ||
-        "Upload failed. Please try again."
-      );
+      setUploadError(error?.response?.data?.message || error?.message || "Upload failed. Please try again.");
     }
-  };
+  });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ docId, status }: { docId: string, status: string }) => {
+      return await api.patch(`/v1/vault/documents/${docId}/status`, { status });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vaultDocuments'] });
+      setSelectedDoc(null);
+    }
+  });
+
+  const filteredDocs = useMemo(() => {
+    return docs.filter((doc: SecureKycDocument) =>
+      doc.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (doc.userId || "").toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [docs, searchTerm]);
 
   return (
     <div className="space-y-6 font-sans pb-12">
@@ -112,10 +87,8 @@ export const VaultPage: React.FC = () => {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input
-            type="text"
-            placeholder="Search by client ID or document type..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            type="text" placeholder="Search by client ID or document type..."
+            value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm shadow-sm"
           />
         </div>
@@ -139,7 +112,7 @@ export const VaultPage: React.FC = () => {
       )}
 
       <div className="bg-white rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.03)] overflow-hidden min-h-[400px]">
-        {loading ? (
+        {isLoading ? (
           <div className="flex flex-col items-center justify-center h-[400px] space-y-4">
             <Loader2 size={32} className="animate-spin text-[#141414]" />
             <p className="text-sm font-medium text-gray-500">Decrypting vault metadata...</p>
@@ -156,7 +129,7 @@ export const VaultPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {filteredDocs.map((doc) => {
+              {filteredDocs.map((doc: SecureKycDocument) => {
                 const displayId = doc.userId || "Unassigned";
                 return (
                   <tr
@@ -214,19 +187,20 @@ export const VaultPage: React.FC = () => {
       <AnimatePresence>
         {selectedDoc && (
           <DocumentViewer
-            doc={selectedDoc} // `selectedDoc.signedUrl` will now be passed automatically to your viewer
+            doc={selectedDoc} 
             onClose={() => setSelectedDoc(null)}
-            onUpdateStatus={async (status: any) => {
-              await api.patch(`/v1/vault/documents/${selectedDoc.id}/status`, { status });
-              setDocs(docs.map(d => d.id === selectedDoc.id ? { ...d, status } : d));
-              setSelectedDoc(null);
+            onUpdateStatus={async (status: "pending" | "approved" | "rejected") => {
+              // Use mutateAsync so it returns a Promise to the DocumentViewer
+              await updateStatusMutation.mutateAsync({ docId: selectedDoc.id, status });
             }}
           />
         )}
         {showUploadModal && (
           <DocumentUploadModal
             onClose={() => setShowUploadModal(false)}
-            onSuccess={handleDocumentSave}
+            onSuccess={async (payload) => {
+              await uploadMutation.mutateAsync(payload);
+            }}
           />
         )}
       </AnimatePresence>
