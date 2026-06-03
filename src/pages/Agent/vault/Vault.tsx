@@ -32,7 +32,7 @@ export const VaultPage: React.FC = () => {
   const fetchDocuments = async () => {
     setLoading(true);
     try {
-      const response = await api.get('/v1/vault/documents');
+      const response = await api.get('/vault/documents');
       const data = response.data?.data || response.data || [];
       
       // Batch sign all secure document URLs from the database
@@ -81,7 +81,7 @@ export const VaultPage: React.FC = () => {
       );
 
       // Step 2: Persist in the database (ensure endpoint matches your Laravel route)
-      const response = await api.post('/v1/vault/documents', {
+      const response = await api.post('/vault/documents', {
         s3_path:  supabaseUrl,
         type:     payload.type,
         user_id:  payload.userId  ?? null,
@@ -108,7 +108,6 @@ export const VaultPage: React.FC = () => {
 
   return (
     <div className="space-y-6 font-sans pb-12">
-
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
