@@ -32,15 +32,16 @@ export const AdminLayout: React.FC = () => {
   const userInitials = profile?.name?.[0] || user?.email?.[0] || "A";
 
   return (
-    // Changed bg to transparent so it inherits body background from index.css
-    <div className="flex h-screen bg-transparent font-sans overflow-hidden transition-colors duration-300">
+    // UPDATED: Added bg-[#E4E3E0] dark:bg-[#0A0A0A] to cover the entire background
+    <div className="flex h-screen bg-[#E4E3E0] dark:bg-[#0A0A0A] font-sans overflow-hidden transition-colors duration-300">
       <Sidebar 
         navItems={adminNavItems} 
         onOpenProfile={() => setShowProfileModal(true)} 
         userInitials={userInitials} 
       />
 
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+      {/* UPDATED: Added bg-[#E4E3E0] dark:bg-[#0A0A0A] to ensure the main area is dark */}
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative bg-[#E4E3E0] dark:bg-[#0A0A0A]">
         <header className="flex items-center justify-between p-5 bg-white dark:bg-[#141414] border-b border-gray-100 dark:border-gray-800 shadow-sm z-20 transition-colors">
           <div className="md:hidden flex items-center gap-2">
             <img src="/makao-icon-dark.svg" alt="Makao Logo" className="w-6 h-6 object-contain" />
@@ -81,7 +82,8 @@ export const AdminLayout: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 md:px-10 pb-10">
+        {/* UPDATED: Added bg-[#E4E3E0] dark:bg-[#0A0A0A] to the scrollable content container */}
+        <div className="flex-1 overflow-y-auto px-6 md:px-10 pb-10 bg-[#E4E3E0] dark:bg-[#0A0A0A]">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}

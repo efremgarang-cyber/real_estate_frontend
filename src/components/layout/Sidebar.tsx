@@ -24,7 +24,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ navItems, onOpenProfile, userI
   return (
     <aside 
       className={cn(
-        "hidden md:flex flex-col bg-white border-r border-gray-100 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-30 transition-all duration-300 ease-in-out relative",
+        "hidden md:flex flex-col bg-white dark:bg-[#0A0A0A] border-r border-gray-100 dark:border-gray-800 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-30 transition-all duration-300 ease-in-out relative",
         isCollapsed ? "w-[88px]" : "w-[280px]"
       )}
     >
@@ -32,7 +32,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ navItems, onOpenProfile, userI
       <button
         type="button"
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute -right-3.5 top-9 w-7 h-7 bg-white border border-gray-200 shadow-sm rounded-full flex items-center justify-center text-gray-400 hover:text-[#141414] hover:border-gray-300 hover:shadow transition-all z-50"
+        className="absolute -right-3.5 top-9 w-7 h-7 bg-white dark:bg-[#141414] border border-gray-200 dark:border-gray-700 shadow-sm rounded-full flex items-center justify-center text-gray-400 hover:text-[#141414] dark:hover:text-white hover:border-gray-300 dark:hover:border-gray-600 transition-all z-50"
       >
         {isCollapsed ? <ChevronRight size={14} strokeWidth={3} /> : <ChevronLeft size={14} strokeWidth={3} />}
       </button>
@@ -48,8 +48,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ navItems, onOpenProfile, userI
             <div className="flex items-center gap-3">
               <img src="/makao-icon-dark.svg" alt="Makao Logo" className="w-8 h-8 object-contain" />
               <div>
-                <h1 className="font-display text-2xl font-bold text-[#141414] tracking-tight leading-none">MAKAO</h1>
-                <p className="text-[10px] font-semibold text-gray-400 tracking-wider mt-1 uppercase">The Agency Platform</p>
+                <h1 className="font-display text-2xl font-bold text-[#141414] dark:text-white tracking-tight leading-none">MAKAO</h1>
+                <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 tracking-wider mt-1 uppercase">The Agency Platform</p>
               </div>
             </div>
           </div>
@@ -69,11 +69,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ navItems, onOpenProfile, userI
                 "flex items-center rounded-xl font-medium transition-all text-sm group overflow-hidden whitespace-nowrap",
                 isCollapsed ? "justify-center p-3" : "gap-3 px-4 py-3.5",
                 isActive 
-                  ? "bg-[#141414] text-white shadow-md" 
-                  : "text-gray-500 hover:bg-gray-50 hover:text-[#141414]"
+                  ? "bg-[#141414] dark:bg-white text-white dark:text-[#141414] shadow-md" 
+                  : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#141414] hover:text-[#141414] dark:hover:text-white"
               )}
             >
-              <item.icon size={20} className={cn("shrink-0", isActive ? "text-white" : "text-gray-400 group-hover:text-[#141414]")} />
+              <item.icon size={20} className={cn("shrink-0", isActive ? "text-white dark:text-[#141414]" : "text-gray-400 group-hover:text-[#141414] dark:group-hover:text-white")} />
               
               {!isCollapsed && (
                 <span className="animate-in fade-in duration-300">
@@ -92,18 +92,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ navItems, onOpenProfile, userI
           onClick={onOpenProfile}
           title={isCollapsed ? "View Profile" : undefined}
           className={cn(
-            "w-full bg-gray-50 border border-gray-100 rounded-2xl flex items-center transition-colors hover:bg-gray-100 relative text-left",
+            "w-full bg-gray-50 dark:bg-[#141414] border border-gray-100 dark:border-gray-800 rounded-2xl flex items-center transition-colors hover:bg-gray-100 dark:hover:bg-[#1A1A1A] relative text-left",
             isCollapsed ? "p-2 justify-center" : "p-4 gap-3"
           )}
         >
-          <div className="rounded-full bg-white shadow-sm border border-gray-200 text-[#141414] flex items-center justify-center font-bold text-sm shrink-0 transition-all w-10 h-10">
+          <div className="rounded-full bg-white dark:bg-[#0A0A0A] shadow-sm border border-gray-200 dark:border-gray-700 text-[#141414] dark:text-white flex items-center justify-center font-bold text-sm shrink-0 transition-all w-10 h-10">
             <span>{userInitials.toUpperCase()}</span>
           </div>
 
           {!isCollapsed && (
             <div className="flex-1 min-w-0 animate-in fade-in duration-300">
-              <p className="text-sm font-bold text-[#141414] truncate">{profile?.name || "User"}</p>
-              <p className="text-xs font-medium text-gray-500 truncate capitalize">{profile?.role || "Member"}</p>
+              <p className="text-sm font-bold text-[#141414] dark:text-white truncate">{profile?.name || "User"}</p>
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 truncate capitalize">{profile?.role || "Member"}</p>
             </div>
           )}
         </button>

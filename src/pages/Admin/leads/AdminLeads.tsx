@@ -1,3 +1,4 @@
+// src/pages/Admin/leads/AdminLeadsDashboard.tsx
 import React, { useState, useEffect } from "react";
 import {
   DndContext,
@@ -75,7 +76,6 @@ export const AdminLeadsDashboard: React.FC = () => {
 
     if (!activeLead || activeLead.kanban_stage === targetStage) return;
 
-    // Governance: Block and show modal for backward movement
     if (STAGE_ORDER[targetStage] < STAGE_ORDER[activeLead.kanban_stage]) {
       setShowDeniedModal(true);
       return;
@@ -107,27 +107,27 @@ export const AdminLeadsDashboard: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col gap-5 h-full w-full text-[#141414]">
+    <div className="flex flex-col gap-5 h-full w-full text-[#141414] dark:text-gray-100">
       {/* Header */}
       <div className="flex items-center justify-between shrink-0 px-1 mb-2">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-white rounded-xl border border-neutral-200 shadow-sm">
-            <Sparkles className="w-5 h-5 text-indigo-600" />
+          <div className="p-2 bg-white dark:bg-[#141414] rounded-xl border border-neutral-200 dark:border-gray-800 shadow-sm">
+            <Sparkles className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-[#141414] tracking-tight">Pipeline Monitoring Hub</h1>
-            <p className="text-xs text-neutral-500 font-medium uppercase tracking-wider">Global Admin Oversight Matrix</p>
+            <h1 className="text-xl font-bold text-[#141414] dark:text-white tracking-tight">Pipeline Monitoring Hub</h1>
+            <p className="text-xs text-neutral-500 dark:text-gray-400 font-medium uppercase tracking-wider">Global Admin Oversight Matrix</p>
           </div>
         </div>
         
         <div className="relative group">
-          <Search className="absolute left-3 top-2.5 text-neutral-400 group-focus-within:text-indigo-600 transition-colors" size={16} />
+          <Search className="absolute left-3 top-2.5 text-neutral-400 dark:text-gray-500 group-focus-within:text-indigo-600 transition-colors" size={16} />
           <input 
             type="text"
             placeholder="Search by name, email or phone..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 pr-4 py-2 bg-white border border-neutral-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all w-[320px] shadow-sm"
+            className="pl-10 pr-4 py-2 bg-white dark:bg-[#141414] border border-neutral-200 dark:border-gray-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 dark:focus:border-indigo-500 transition-all w-[320px] shadow-sm"
           />
         </div>
       </div>
@@ -137,8 +137,8 @@ export const AdminLeadsDashboard: React.FC = () => {
         <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={onDragEnd}>
           <div className="flex gap-4 h-full overflow-x-auto pb-4">
             {filteredColumns.map((col) => (
-              <div key={col.id} className="flex flex-col w-[360px] shrink-0 h-full bg-neutral-50 rounded-2xl p-3 border border-neutral-200">
-                <div className="text-xs font-bold uppercase text-neutral-500 p-2">
+              <div key={col.id} className="flex flex-col w-[360px] shrink-0 h-full bg-neutral-50 dark:bg-[#0A0A0A] rounded-2xl p-3 border border-neutral-200 dark:border-gray-800">
+                <div className="text-xs font-bold uppercase text-neutral-500 dark:text-gray-400 p-2">
                   {col.title} ({col.tasks.length})
                 </div>
                 <KanbanColumn 

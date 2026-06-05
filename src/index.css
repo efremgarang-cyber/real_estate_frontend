@@ -6,6 +6,7 @@
   --font-display: "Cormorant Garamond", serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
+@custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
   body {

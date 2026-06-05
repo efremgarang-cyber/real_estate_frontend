@@ -24,21 +24,11 @@ export const AdminNewListing: React.FC<AdminNewListingProps> = ({ isOpen, onClos
     description: ""
   });
 
-  // State managers to handle local media preview assets
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const createListingMutation = useMutation({
     mutationFn: async (data: CreatePropertyPayload) => {
-      // NOTE: Since you're utilizing MinIO file records, your api might either expect:
-      // A) Standard JSON (with a separate media step or processing raw files)
-      // B) A standard FormData object if submitting fields alongside images in one route block.
-      // E.g., if converting to Multipart payload:
-      // const body = new FormData();
-      // Object.entries(data).forEach(([k, v]) => body.append(k, String(v)));
-      // if (selectedImage) body.append("image", selectedImage);
-      // return propertyApi.create(body);
-
       return propertyApi.create(data);
     },
     onSuccess: () => {
@@ -47,7 +37,6 @@ export const AdminNewListing: React.FC<AdminNewListingProps> = ({ isOpen, onClos
     }
   });
 
-  // Completely bypass element composition if window flag is false
   if (!isOpen) return null;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -58,7 +47,7 @@ export const AdminNewListing: React.FC<AdminNewListingProps> = ({ isOpen, onClos
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setSelectedImage(file);
-      setImagePreview(URL.createObjectURL(file)); // Generate browser buffer URL string for visualization
+      setImagePreview(URL.createObjectURL(file));
     }
   };
 
@@ -88,17 +77,17 @@ export const AdminNewListing: React.FC<AdminNewListingProps> = ({ isOpen, onClos
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in">
-      <div className="bg-white border border-neutral-200/60 rounded-[2rem] w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl font-sans text-[#141414] flex flex-col">
+      <div className="bg-white dark:bg-[#0A0A0A] border border-neutral-200/60 dark:border-gray-800 rounded-[2rem] w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl font-sans text-[#141414] dark:text-gray-100 flex flex-col">
         
         {/* Sticky Header Toolbar Context */}
-        <div className="sticky top-0 bg-white border-b border-neutral-100 px-8 py-5 flex items-center justify-between z-10">
-          <h1 className="text-lg font-bold tracking-tight text-neutral-900 flex items-center gap-2">
+        <div className="sticky top-0 bg-white dark:bg-[#141414] border-b border-neutral-100 dark:border-gray-800 px-8 py-5 flex items-center justify-between z-10">
+          <h1 className="text-lg font-bold tracking-tight text-neutral-900 dark:text-white flex items-center gap-2">
             <Building2 size={18} className="text-neutral-400" /> Create System Listing
           </h1>
           <button 
             type="button"
             onClick={handleCloseAndReset} 
-            className="p-1.5 rounded-full hover:bg-neutral-100 text-neutral-400 hover:text-neutral-900 transition-colors"
+            className="p-1.5 rounded-full hover:bg-neutral-100 dark:hover:bg-gray-800 text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
           >
             <X size={18} />
           </button>
@@ -119,7 +108,7 @@ export const AdminNewListing: React.FC<AdminNewListingProps> = ({ isOpen, onClos
             />
             
             {imagePreview ? (
-              <div className="relative group rounded-xl overflow-hidden border border-neutral-200 bg-neutral-50 h-44 flex items-center justify-center">
+              <div className="relative group rounded-xl overflow-hidden border border-neutral-200 dark:border-gray-800 bg-neutral-50 dark:bg-[#141414] h-44 flex items-center justify-center">
                 <img src={imagePreview} alt="Property Showcase Preview" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
                   <button 
@@ -141,13 +130,13 @@ export const AdminNewListing: React.FC<AdminNewListingProps> = ({ isOpen, onClos
             ) : (
               <div 
                 onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-neutral-200 hover:border-neutral-400 rounded-xl bg-neutral-50/50 p-6 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors group"
+                className="border-2 border-dashed border-neutral-200 dark:border-gray-700 hover:border-neutral-400 dark:hover:border-gray-500 rounded-xl bg-neutral-50/50 dark:bg-[#141414] p-6 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors group"
               >
-                <div className="p-2.5 bg-white rounded-xl shadow-sm group-hover:scale-110 transition-transform">
+                <div className="p-2.5 bg-white dark:bg-[#0A0A0A] rounded-xl shadow-sm group-hover:scale-110 transition-transform">
                   <Upload size={16} className="text-neutral-500" />
                 </div>
                 <div className="text-center">
-                  <p className="text-xs font-semibold text-neutral-700">Click to upload imagery file</p>
+                  <p className="text-xs font-semibold text-neutral-700 dark:text-gray-300">Click to upload imagery file</p>
                   <p className="text-[10px] text-neutral-400 mt-0.5">Supports PNG, JPG, or WEBP formats</p>
                 </div>
               </div>
@@ -163,7 +152,7 @@ export const AdminNewListing: React.FC<AdminNewListingProps> = ({ isOpen, onClos
               value={formData.title}
               onChange={handleChange}
               placeholder="e.g. Premium 4BR Villa Suite" 
-              className="w-full px-4 py-2.5 bg-neutral-50/50 border border-neutral-200 rounded-xl text-sm focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all"
+              className="w-full px-4 py-2.5 bg-neutral-50/50 dark:bg-[#141414] border border-neutral-200 dark:border-gray-800 rounded-xl text-sm focus:outline-none focus:border-[#141414] dark:focus:border-white focus:ring-1 focus:ring-[#141414] dark:focus:ring-white transition-all"
             />
           </div>
 
@@ -177,7 +166,7 @@ export const AdminNewListing: React.FC<AdminNewListingProps> = ({ isOpen, onClos
                 value={formData.location}
                 onChange={handleChange}
                 placeholder="e.g. Nyali, Mombasa" 
-                className="w-full px-4 py-2.5 bg-neutral-50/50 border border-neutral-200 rounded-xl text-sm focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all"
+                className="w-full px-4 py-2.5 bg-neutral-50/50 dark:bg-[#141414] border border-neutral-200 dark:border-gray-800 rounded-xl text-sm focus:outline-none focus:border-[#141414] dark:focus:border-white focus:ring-1 focus:ring-[#141414] dark:focus:ring-white transition-all"
               />
             </div>
             <div className="space-y-1.5">
@@ -189,7 +178,7 @@ export const AdminNewListing: React.FC<AdminNewListingProps> = ({ isOpen, onClos
                 value={formData.price}
                 onChange={handleChange}
                 placeholder="e.g. 15000000" 
-                className="w-full px-4 py-2.5 bg-neutral-50/50 border border-neutral-200 rounded-xl text-sm focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all"
+                className="w-full px-4 py-2.5 bg-neutral-50/50 dark:bg-[#141414] border border-neutral-200 dark:border-gray-800 rounded-xl text-sm focus:outline-none focus:border-[#141414] dark:focus:border-white focus:ring-1 focus:ring-[#141414] dark:focus:ring-white transition-all"
               />
             </div>
           </div>
@@ -203,7 +192,7 @@ export const AdminNewListing: React.FC<AdminNewListingProps> = ({ isOpen, onClos
                 value={formData.bedrooms}
                 onChange={handleChange}
                 placeholder="4" 
-                className="w-full px-4 py-2.5 bg-neutral-50/50 border border-neutral-200 rounded-xl text-sm focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all"
+                className="w-full px-4 py-2.5 bg-neutral-50/50 dark:bg-[#141414] border border-neutral-200 dark:border-gray-800 rounded-xl text-sm focus:outline-none focus:border-[#141414] dark:focus:border-white focus:ring-1 focus:ring-[#141414] dark:focus:ring-white transition-all"
               />
             </div>
             <div className="space-y-1.5">
@@ -214,7 +203,7 @@ export const AdminNewListing: React.FC<AdminNewListingProps> = ({ isOpen, onClos
                 value={formData.baths}
                 onChange={handleChange}
                 placeholder="3" 
-                className="w-full px-4 py-2.5 bg-neutral-50/50 border border-neutral-200 rounded-xl text-sm focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all"
+                className="w-full px-4 py-2.5 bg-neutral-50/50 dark:bg-[#141414] border border-neutral-200 dark:border-gray-800 rounded-xl text-sm focus:outline-none focus:border-[#141414] dark:focus:border-white focus:ring-1 focus:ring-[#141414] dark:focus:ring-white transition-all"
               />
             </div>
             <div className="space-y-1.5">
@@ -225,7 +214,7 @@ export const AdminNewListing: React.FC<AdminNewListingProps> = ({ isOpen, onClos
                 value={formData.sqft}
                 onChange={handleChange}
                 placeholder="3200" 
-                className="w-full px-4 py-2.5 bg-neutral-50/50 border border-neutral-200 rounded-xl text-sm focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all"
+                className="w-full px-4 py-2.5 bg-neutral-50/50 dark:bg-[#141414] border border-neutral-200 dark:border-gray-800 rounded-xl text-sm focus:outline-none focus:border-[#141414] dark:focus:border-white focus:ring-1 focus:ring-[#141414] dark:focus:ring-white transition-all"
               />
             </div>
           </div>
@@ -238,7 +227,7 @@ export const AdminNewListing: React.FC<AdminNewListingProps> = ({ isOpen, onClos
               value={formData.description}
               onChange={handleChange}
               placeholder="Provide a comprehensive breakdown of the real estate listing parameters..." 
-              className="w-full px-4 py-2.5 bg-neutral-50/50 border border-neutral-200 rounded-xl text-sm focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all resize-none"
+              className="w-full px-4 py-2.5 bg-neutral-50/50 dark:bg-[#141414] border border-neutral-200 dark:border-gray-800 rounded-xl text-sm focus:outline-none focus:border-[#141414] dark:focus:border-white focus:ring-1 focus:ring-[#141414] dark:focus:ring-white transition-all resize-none"
             />
           </div>
 
@@ -246,14 +235,14 @@ export const AdminNewListing: React.FC<AdminNewListingProps> = ({ isOpen, onClos
             <button
               type="button"
               onClick={handleCloseAndReset}
-              className="flex-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 py-3 rounded-xl text-xs font-bold transition-all"
+              className="flex-1 bg-neutral-100 dark:bg-[#1A1A1A] hover:bg-neutral-200 dark:hover:bg-[#262626] text-neutral-800 dark:text-gray-300 py-3 rounded-xl text-xs font-bold transition-all"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={createListingMutation.isPending}
-              className="flex-[2] flex items-center justify-center gap-2 bg-[#141414] hover:bg-black text-white py-3 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
+              className="flex-[2] flex items-center justify-center gap-2 bg-[#141414] dark:bg-white hover:bg-black dark:hover:bg-gray-200 text-white dark:text-[#141414] py-3 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
             >
               {createListingMutation.isPending ? (
                 <>
