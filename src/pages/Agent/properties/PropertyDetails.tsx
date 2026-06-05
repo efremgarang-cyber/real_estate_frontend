@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -13,10 +13,10 @@ import { api } from "../../../lib/api";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
-// (Keep your Toast, ShareModal, ContactAgentModal, SendEmailModal, DocuSignModal and generatePDFBrochure exactly as they are here)
 interface ToastNotification { id: string; type: 'success' | 'error' | 'info' | 'warning'; title: string; message: string; }
+
 const Toast: React.FC<{ notification: ToastNotification; onClose: () => void }> = ({ notification, onClose }) => {
-  useEffect(() => { const timer = setTimeout(() => { onClose(); }, 5000); return () => clearTimeout(timer); }, [onClose]);
+  React.useEffect(() => { const timer = setTimeout(() => { onClose(); }, 5000); return () => clearTimeout(timer); }, [onClose]);
   const icons = { success: <Check className="w-5 h-5 text-green-600" />, error: <AlertCircle className="w-5 h-5 text-red-600" />, warning: <AlertCircle className="w-5 h-5 text-orange-600" />, info: <Info className="w-5 h-5 text-blue-600" /> };
   const colors = { success: "bg-green-50 border-green-200", error: "bg-red-50 border-red-200", warning: "bg-orange-50 border-orange-200", info: "bg-blue-50 border-blue-200" };
   return (
@@ -32,22 +32,19 @@ const Toast: React.FC<{ notification: ToastNotification; onClose: () => void }> 
   );
 };
 
-// ... include your existing Modals and generatePDFBrochure function ...
-
 export const PropertyDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const brochureRef = useRef<HTMLDivElement>(null);
 
   const [notifications, setNotifications] = useState<ToastNotification[]>([]);
-  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
-  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
-  const [isDocuSignModalOpen, setIsDocuSignModalOpen] = useState(false);
-
+  
   const [isEditing, setIsEditing] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  
+  // We only use this state when the user actively clicks "Edit Details"
   const [editForm, setEditForm] = useState({
     title: "", price: "", location: "", bedrooms: "", baths: "", sqft: "", description: "", status: ""
   });
@@ -64,15 +61,43 @@ export const PropertyDetail: React.FC = () => {
   };
   const removeNotification = (notifId: string) => setNotifications(prev => prev.filter(n => n.id !== notifId));
 
-  // 1. Fetch & Cache Property Data
+  const generatePDFBrochure = async () => {
+    if (!brochureRef.current || !property) return;
+    setIsGeneratingPDF(true);
+    try {
+      const canvas = await html2canvas(brochureRef.current, { scale: 2, useCORS: true });
+      const imgData = canvas.toDataURL("image/jpeg", 1.0);
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`${property.title.replace(/\s+/g, '_')}_Brochure.pdf`);
+      addNotification('success', 'PDF Generated', 'Brochure downloaded successfully.');
+    } catch (error) {
+      addNotification('error', 'Generation Failed', 'Could not create PDF brochure.');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
   const { data: cacheData, isLoading, isError } = useQuery({
     queryKey: ['property', id],
     queryFn: async () => {
       if (!id) return null;
       const response = await propertyApi.getById(id);
-      const property = response.data;
       
-      const rawImages = property.images || [];
+      let propertyData = response?.data || response;
+      
+      // Failsafe: If the backend accidentally returned an array instead of a single object
+      if (Array.isArray(propertyData)) {
+        propertyData = propertyData[0];
+      }
+      
+      if (!propertyData || Object.keys(propertyData).length === 0) {
+        throw new Error("Property payload is empty");
+      }
+      
+      const rawImages = propertyData.images || [];
       const realImageUrls = Array.isArray(rawImages) 
         ? rawImages.map((img: any) => typeof img === 'object' ? img.s3_path || img.url : img).filter(Boolean)
         : [];
@@ -85,32 +110,33 @@ export const PropertyDetail: React.FC = () => {
         ? signedUrls 
         : ["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=1200"];
 
-      return { property, signedImages: imagesToDisplay };
+      return { property: propertyData, signedImages: imagesToDisplay };
     },
-    enabled: !!id
+    enabled: !!id,
+    retry: 1
   });
 
   const property = cacheData?.property;
+  console.log("Property: ", property);
   const signedImages = cacheData?.signedImages || [];
 
-  // Populate edit form when property loads
-  useEffect(() => {
-    if (property) {
-      setOfferAmount(property.price?.toString() || "");
+  const handleEditToggle = () => {
+    // Populate the form ONLY when they enter edit mode
+    if (!isEditing && property) {
       setEditForm({
         title: property.title || "",
         price: property.price?.toString() || "",
-        location: property.location || property.location || "",
-        bedrooms: property.bedrooms?.toString() || property.bedrooms?.toString() || "",
-        baths: property.baths?.toString() || property.baths?.toString() || "",
+        location: property.location || "",
+        bedrooms: property.bedrooms?.toString() || "",
+        baths: property.baths?.toString() || "",
         sqft: property.sqft?.toString() || "",
         description: property.description || "",
         status: property.status || "active"
       });
     }
-  }, [property]);
+    setIsEditing(!isEditing);
+  };
 
-  // 2. Mutations
   const updateMutation = useMutation({
     mutationFn: async (updates: any) => {
       if (!property) throw new Error("Property context is missing");
@@ -119,49 +145,43 @@ export const PropertyDetail: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['property', id] });
       queryClient.invalidateQueries({ queryKey: ['properties'] }); 
-      addNotification('success', 'Property Updated', 'The property details have been saved successfully.');
+      addNotification('success', 'Property Updated', 'Details saved successfully.');
       setIsEditing(false);
     },
-    onError: () => addNotification('error', 'Update Failed', 'Could not save changes to the property.')
+    onError: () => addNotification('error', 'Update Failed', 'Could not save changes.')
   });
 
   const uploadImageMutation = useMutation({
     mutationFn: async (file: File) => {
       if (!property) throw new Error("Property context is missing");
-      
       const s3Url = await vaultApi.executeSecureUpload(file, 'property_image');
-      
-      // FIX: Map existing images to guarantee they are flat strings before sending to the backend
       const existingImages = (property.images ?? []).map((img: any) => 
         typeof img === 'object' ? (img.s3_path || img.url) : img
       );
-      
-      const updatedImages = [s3Url, ...existingImages];
-      return propertyApi.update(property.id, { images: updatedImages });
+      return propertyApi.update(property.id, { images: [s3Url, ...existingImages] });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['property', id] });
-      addNotification('success', 'Image Uploaded', 'Property imagery updated successfully.');
+      addNotification('success', 'Image Uploaded', 'Imagery updated successfully.');
       if (imageInputRef.current) imageInputRef.current.value = '';
     },
-    onError: () => addNotification('error', 'Upload Failed', 'Failed to upload image to the secure vault.')
+    onError: () => addNotification('error', 'Upload Failed', 'Failed to upload image.')
   });
 
   const leadMutation = useMutation({
     mutationFn: (leadData: any) => api.post('/leads', leadData),
     onSuccess: () => {
       setLeadSuccess(true);
-      addNotification('success', 'Offer Submitted!', 'Your offer has been successfully sent to our pipeline.');
+      addNotification('success', 'Offer Submitted!', 'Sent to pipeline.');
+      setCustomerName(""); setCustomerEmail(""); setCustomerPhone(""); setOfferAmount("");
     },
-    onError: () => addNotification('error', 'Submission Failed', 'Unable to submit your offer. Please check your connection.')
+    onError: () => addNotification('error', 'Submission Failed', 'Check connection.')
   });
-
-  const handleEditToggle = () => setIsEditing(!isEditing);
 
   const handleSaveChanges = () => {
     updateMutation.mutate({
-      title: editForm.title, price: Number(editForm.price), address: editForm.location,
-      beds: Number(editForm.bedrooms), baths: Number(editForm.baths), sqft: Number(editForm.sqft),
+      title: editForm.title, price: Number(editForm.price), location: editForm.location,
+      bedrooms: Number(editForm.bedrooms), baths: Number(editForm.baths), sqft: Number(editForm.sqft),
       description: editForm.description, status: editForm.status
     });
   };
@@ -170,7 +190,7 @@ export const PropertyDetail: React.FC = () => {
     const file = event.target.files?.[0];
     if (!file || !property) return;
     if (!file.type.startsWith('image/')) {
-      addNotification('error', 'Invalid File', 'Please upload a valid image file.');
+      addNotification('error', 'Invalid File', 'Upload a valid image.');
       return;
     }
     uploadImageMutation.mutate(file);
@@ -181,11 +201,9 @@ export const PropertyDetail: React.FC = () => {
     if (!property) return;
     leadMutation.mutate({
       name: customerName, email: customerEmail, phone: customerPhone,
-      value: parseFloat(offerAmount), property_id: property.id, kanban_stage: 'new'
+      value: parseFloat(offerAmount || property.price || "0"), property_id: property.id, kanban_stage: 'new'
     });
   };
-
-  // ... (Modal/Brochure handlers remain exactly the same) ...
 
   if (isLoading) {
     return (
@@ -205,68 +223,132 @@ export const PropertyDetail: React.FC = () => {
     );
   }
 
-  const expirationDate = property.expires_at;
-  const isExpired = expirationDate ? new Date(expirationDate) < new Date() : false;
-  const isNearExpiry = expirationDate ? (new Date(expirationDate).getTime() - new Date().getTime()) < 7 * 24 * 60 * 60 * 1000 : false;
-  const agent = property.agency_id || { name: "System Admin", email: "admin@vantage.com", phone: "+254700000000", avatar: "https://ui-avatars.com/api/?name=Admin&background=141414&color=fff" };
-  const amenities = property.description || [];
-
   return (
-    <div className="space-y-8 pb-12 font-sans">
-      {/* ... Toast and Modals Mounts ... */}
+    <div className="space-y-8 pb-12 font-sans" ref={brochureRef}>
+      <div className="fixed top-0 right-0 z-50 flex flex-col gap-2 p-4">
+        {notifications.map(n => <Toast key={n.id} notification={n} onClose={() => removeNotification(n.id)} />)}
+      </div>
       
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <Link to="/agent/properties" className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-[#141414] transition-colors">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4" data-html2canvas-ignore>
+        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-[#141414] transition-colors">
           <ArrowLeft size={16} /> Back to Listings
-        </Link>
+        </button>
         <div className="flex gap-3">
           {isEditing ? (
-            <button 
-              onClick={handleSaveChanges} disabled={updateMutation.isPending}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#141414] text-white rounded-xl text-sm font-medium hover:bg-black transition-colors disabled:opacity-70"
-            >
+            <button onClick={handleSaveChanges} disabled={updateMutation.isPending} className="flex items-center gap-2 px-4 py-2.5 bg-[#141414] text-white rounded-xl text-sm font-medium hover:bg-black transition-colors disabled:opacity-70">
               {updateMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} 
               {updateMutation.isPending ? "Saving..." : "Save Changes"}
             </button>
           ) : (
-            <button 
-              onClick={handleEditToggle}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-[#141414] rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors"
-            >
+            <button onClick={handleEditToggle} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-[#141414] rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">
               <Edit2 size={16} /> Edit Details
             </button>
           )}
-
-          {/* ... Share / Download Buttons ... */}
+          <button onClick={generatePDFBrochure} disabled={isGeneratingPDF} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-[#141414] rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">
+            {isGeneratingPDF ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} Brochure
+          </button>
         </div>
       </div>
 
-      {/* Grid rendering (The rest of the JSX structurally mirrors your provided snippet exactly using signedImages[0]) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="md:col-span-2 aspect-[21/9] bg-gray-100 rounded-[2rem] overflow-hidden relative group">
-          <img src={signedImages[0]} className="w-full h-full object-cover" alt={property.title} />
-          
+          <img src={signedImages[0]} className="w-full h-full object-cover" alt={property.title || "Property Cover"} crossOrigin="anonymous" />
           {isEditing && (
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
               <input type="file" ref={imageInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
-              <button 
-                onClick={() => imageInputRef.current?.click()} disabled={uploadImageMutation.isPending}
-                className="flex items-center gap-2 px-6 py-3 bg-white text-[#141414] rounded-xl font-bold shadow-lg hover:scale-105 transition-transform"
-              >
-                {uploadImageMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <ImageIcon size={18} />}
-                {uploadImageMutation.isPending ? "Uploading to S3..." : "Change Main Image"}
+              <button onClick={() => imageInputRef.current?.click()} disabled={uploadImageMutation.isPending} className="flex items-center gap-2 px-6 py-3 bg-white text-[#141414] rounded-xl font-bold shadow-lg hover:scale-105 transition-transform">
+                {uploadImageMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <ImageIcon size={18} />} Change Main Image
               </button>
             </div>
           )}
         </div>
-        {signedImages.slice(1, 3).map((img: string, i: number) => (
-          <div key={i} className="aspect-video bg-gray-100 rounded-[2rem] overflow-hidden">
-            <img src={img} className="w-full h-full object-cover" alt={`extra ${i + 1}`} />
-          </div>
-        ))}
       </div>
       
-      {/* ... Rest of your component (Edit forms, stats, Lead Submit Box using leadMutation.isPending) ... */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-8">
+          <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm space-y-6">
+            {isEditing ? (
+              <div className="space-y-6">
+                <div>
+                  <label htmlFor="title" className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Property Title</label>
+                  <input id="title" type="text" value={editForm.title} onChange={e => setEditForm({...editForm, title: e.target.value})} className="w-full text-2xl font-bold border-b border-gray-200 focus:outline-none pb-2 text-[#141414]" placeholder="e.g. Modern Villa in Kitisuru" />
+                </div>
+
+                <div>
+                  <label htmlFor="location" className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Location</label>
+                  <input id="location" type="text" value={editForm.location} onChange={e => setEditForm({...editForm, location: e.target.value})} className="w-full text-gray-700 border-b border-gray-200 focus:outline-none pb-2" placeholder="e.g. Kitisuru, Nairobi" />
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label htmlFor="bedrooms" className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Bedrooms</label>
+                    <input id="bedrooms" type="number" value={editForm.bedrooms} onChange={e => setEditForm({...editForm, bedrooms: e.target.value})} placeholder="0" className="w-full border border-gray-200 text-[#141414] rounded-lg p-2 focus:ring-1 focus:ring-[#141414] focus:outline-none" />
+                  </div>
+                  <div>
+                    <label htmlFor="baths" className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Bathrooms</label>
+                    <input id="baths" type="number" value={editForm.baths} onChange={e => setEditForm({...editForm, baths: e.target.value})} placeholder="0" className="w-full border border-gray-200 text-[#141414] rounded-lg p-2 focus:ring-1 focus:ring-[#141414] focus:outline-none" />
+                  </div>
+                  <div>
+                    <label htmlFor="sqft" className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Square Footage</label>
+                    <input id="sqft" type="number" value={editForm.sqft} onChange={e => setEditForm({...editForm, sqft: e.target.value})} placeholder="0" className="w-full border border-gray-200 text-[#141414] rounded-lg p-2 focus:ring-1 focus:ring-[#141414] focus:outline-none" />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="description" className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Property Description</label>
+                  <textarea id="description" value={editForm.description} onChange={e => setEditForm({...editForm, description: e.target.value})} rows={5} className="w-full border border-gray-200 text-[#141414] rounded-lg p-4 focus:ring-1 focus:ring-[#141414] focus:outline-none" placeholder="Describe the property's key features, neighborhood, etc."></textarea>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <h1 className="text-3xl font-black text-[#141414] mb-2">{property.title || "Untitled Property"}</h1>
+                  <p className="text-gray-500 flex items-center gap-2"><MapPin size={16} /> {property.location || "Location not specified"}</p>
+                </div>
+                <div className="flex gap-6 py-6 border-y border-gray-100">
+                  <div className="flex items-center gap-2"><Bed className="text-gray-400" /> <span className="font-bold text-[#141414]">{property.bedrooms || "-"} Beds</span></div>
+                  <div className="flex items-center gap-2"><Bath className="text-gray-400" /> <span className="font-bold text-[#141414]">{property.baths || "-"} Baths</span></div>
+                  <div className="flex items-center gap-2"><Maximize2 className="text-gray-400" /> <span className="font-bold text-[#141414]">{property.sqft ? property.sqft.toLocaleString() : "-"} Sqft</span></div>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-[#141414] mb-3">About this property</h3>
+                  <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">{property.description || "No description provided."}</p>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-6" data-html2canvas-ignore>
+          <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
+            <p className="text-sm text-gray-500 font-bold uppercase tracking-wider mb-2">Asking Price</p>
+            {isEditing ? (
+               <input type="number" value={editForm.price} onChange={e => setEditForm({...editForm, price: e.target.value})} className="w-full text-3xl font-black border-b border-gray-200 focus:outline-none pb-2 mb-6 text-[#141414]" placeholder="Enter price" />
+            ) : (
+               <h2 className="text-4xl font-black text-[#141414] mb-6">{formatCurrency(Number(property.price || 0))}</h2>
+            )}
+            
+            {!leadSuccess ? (
+              <form onSubmit={handleCheckoutSubmit} className="space-y-4">
+                <input required type="text" placeholder="Client Name" value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full p-3 border border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl bg-gray-50 focus:bg-white focus:ring-1 focus:ring-[#141414] focus:outline-none transition-all" />
+                <input required type="email" placeholder="Client Email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} className="w-full p-3 border border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl bg-gray-50 focus:bg-white focus:ring-1 focus:ring-[#141414] focus:outline-none transition-all" />
+                <input required type="tel" placeholder="Client Phone" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className="w-full p-3 border border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl bg-gray-50 focus:bg-white focus:ring-1 focus:ring-[#141414] focus:outline-none transition-all" />
+                <input type="number" placeholder="Offer Amount (Optional)" value={offerAmount} onChange={e => setOfferAmount(e.target.value)} className="w-full p-3 border border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl bg-gray-50 focus:bg-white focus:ring-1 focus:ring-[#141414] focus:outline-none transition-all" />
+                
+                <button type="submit" disabled={leadMutation.isPending} className="w-full py-4 bg-[#141414] text-white rounded-xl font-bold hover:bg-black transition-colors disabled:opacity-70 flex items-center justify-center gap-2">
+                  {leadMutation.isPending ? <Loader2 className="animate-spin" /> : <Send size={18} />} Log Offer
+                </button>
+              </form>
+            ) : (
+              <div className="bg-green-50 text-green-700 p-6 rounded-xl flex flex-col items-center text-center gap-3 border border-green-200">
+                <CheckCircle size={32} />
+                <p className="font-bold">Offer Logged Successfully</p>
+                <button onClick={() => setLeadSuccess(false)} className="text-sm font-semibold hover:underline mt-2">Submit another offer</button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

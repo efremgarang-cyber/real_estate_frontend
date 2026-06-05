@@ -1,181 +1,200 @@
 import React, { useState } from "react";
 import { 
   X, 
+  CheckCircle2, 
+  XCircle, 
+  Loader2, 
   FileText, 
-  Calendar, 
-  Maximize2, 
-  User as UserIcon, 
   ShieldCheck, 
-  ShieldAlert, 
-  Download, 
-  Lock, 
-  Loader2 
+  BrainCircuit,
+  AlertTriangle
 } from "lucide-react";
 import { motion } from "motion/react";
-import { KycDocument } from "../types"; // Adjust this import path to match your structure
+import { cn } from "../lib/utils";
 
 interface DocumentViewerProps {
-  doc: KycDocument;
+  doc: any; // Requires the Document object with a valid .signedUrl attached
   onClose: () => void;
-  onUpdateStatus: (status: KycDocument["status"]) => Promise<void>;
+  onUpdateStatus: (status: "pending_review" | "approved" | "rejected") => Promise<void>;
 }
 
 export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose, onUpdateStatus }) => {
-  const [updating, setUpdating] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const handleAction = async (status: KycDocument["status"]) => {
-    setUpdating(true);
-    await onUpdateStatus(status);
-    setUpdating(false);
-    onClose();
+  const handleStatusUpdate = async (status: "approved" | "rejected") => {
+    setIsProcessing(true);
+    try {
+      await onUpdateStatus(status);
+      // Parent modal handles closing on success
+    } catch (error) {
+      console.error("Failed to update status");
+      setIsProcessing(false);
+    }
   };
 
-  // Safe fallback if userId is undefined
-  const displayId = doc.userId || "Unassigned"; 
+  const isImage = doc.s3_path?.match(/\.(jpeg|jpg|gif|png|webp)$/i) || doc.type?.includes("image");
+  const isPdf = doc.s3_path?.match(/\.(pdf)$/i) || doc.type?.includes("pdf");
 
   return (
-    <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] bg-[#141414]/40 backdrop-blur-sm flex items-center justify-center p-4 md:p-10 font-sans"
-    >
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+      {/* Backdrop */}
       <motion.div 
-        initial={{ scale: 0.95, y: 20 }}
-        animate={{ scale: 1, y: 0 }}
-        exit={{ scale: 0.95, y: 20 }}
-        className="w-full max-w-5xl h-[90vh] bg-white rounded-[2rem] shadow-2xl overflow-hidden flex flex-col"
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={() => !isProcessing && onClose()}
+        className="absolute inset-0 bg-[#141414]/80 backdrop-blur-sm"
+      />
+
+      {/* Modal Content - Wide layout for side-by-side review */}
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 10 }} 
+        animate={{ opacity: 1, scale: 1, y: 0 }} 
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        className="relative w-full max-w-5xl bg-white rounded-[2rem] shadow-2xl overflow-hidden flex flex-col md:flex-row h-[85vh]"
       >
-        {/* Header */}
-        <div className="bg-[#141414] text-white p-6 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-white/10 rounded-xl text-white">
-              <FileText size={24} />
-            </div>
-            <div>
-              <h3 className="text-xl font-bold capitalize">{doc.type.replace('_', ' ')}</h3>
-              <p className="text-xs font-medium text-gray-400 mt-1">User: {displayId} • Document ID: {doc.id.slice(0, 8).toUpperCase()}</p>
-            </div>
+        
+        {/* Left Side: Document Visualizer */}
+        <div className="flex-1 bg-gray-100 relative flex flex-col border-r border-gray-200">
+          <div className="absolute top-4 left-4 z-10 flex gap-2">
+            <span className="px-3 py-1.5 bg-black/60 backdrop-blur-md rounded-full text-[10px] font-bold uppercase tracking-wider text-white">
+              {doc.type.replace(/_/g, ' ')}
+            </span>
+            <span className={cn(
+              "px-3 py-1.5 backdrop-blur-md rounded-full text-[10px] font-bold uppercase tracking-wider text-white",
+              doc.status === 'approved' ? "bg-green-600/80" : 
+              doc.status === 'rejected' ? "bg-red-600/80" : "bg-orange-500/80"
+            )}>
+              {doc.status.replace('_', ' ')}
+            </span>
           </div>
-          <button title="onclose" onClick={onClose} className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-colors">
-            <X size={24} />
-          </button>
+
+          <div className="flex-1 overflow-hidden flex items-center justify-center p-4">
+            {doc.signedUrl ? (
+              isImage ? (
+                <img 
+                  src={doc.signedUrl} 
+                  alt="KYC Document" 
+                  className="max-w-full max-h-full object-contain rounded-lg shadow-sm"
+                />
+              ) : isPdf ? (
+                <iframe 
+                  src={`${doc.signedUrl}#toolbar=0`} 
+                  className="w-full h-full rounded-lg bg-white"
+                  title="PDF Viewer"
+                />
+              ) : (
+                <div className="flex flex-col items-center text-gray-400">
+                  <FileText size={48} className="mb-2" />
+                  <p className="text-sm font-medium">Preview not available for this file type.</p>
+                  <a href={doc.signedUrl} target="_blank" rel="noreferrer" className="mt-4 text-xs font-bold text-[#141414] underline">Download to view</a>
+                </div>
+              )
+            ) : (
+              <div className="flex flex-col items-center gap-3 text-gray-400">
+                <Loader2 size={32} className="animate-spin text-[#141414]" />
+                <p className="text-xs font-bold uppercase tracking-wider">Decrypting file...</p>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-          {/* Document Content Area (Mock layout) */}
-          <div className="flex-1 bg-gray-50 p-8 overflow-y-auto flex items-center justify-center border-r border-gray-100 relative">
-            <div className="w-full max-w-2xl aspect-[1/1.4] bg-white shadow-sm border border-gray-200 p-12 relative rounded-xl">
-              <div className="absolute top-8 right-8 text-xs font-semibold uppercase tracking-wider text-gray-300">Confidential</div>
-              <div className="w-20 h-4 bg-gray-100 rounded-full mb-12" />
-              <h4 className="text-2xl font-bold text-[#141414] mb-8 border-b border-gray-100 pb-4 capitalize">{doc.type.replace('_', ' ')}</h4>
-              
-              <div className="space-y-6">
-                {[1, 2, 3, 4, 5].map(i => (
-                  <div key={i} className="space-y-3">
-                    <div className="h-3 bg-gray-50 rounded-full w-full" />
-                    <div className="h-3 bg-gray-50 rounded-full w-5/6" />
-                  </div>
-                ))}
-              </div>
-
-              <div className="absolute bottom-20 left-12 right-12 flex justify-between items-end">
-                <div className="w-32 border-t border-gray-200 pt-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Agent Signature</div>
-                <div className="w-32 border-t border-gray-200 pt-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Vault Verification Seal</div>
-              </div>
-              
-              {/* Status Overlay */}
-              {doc.status === "approved" && (
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-[-15deg] opacity-20 select-none pointer-events-none">
-                  <div className="border-8 border-green-600 rounded-full p-8 flex flex-col items-center">
-                    <ShieldCheck size={120} className="text-green-600" />
-                    <span className="text-4xl font-black text-green-600 mt-2 uppercase tracking-widest">VERIFIED</span>
-                  </div>
-                </div>
-              )}
-              {doc.status === "rejected" && (
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-[-15deg] opacity-20 select-none pointer-events-none">
-                  <div className="border-8 border-red-600 rounded-full p-8 flex flex-col items-center">
-                    <ShieldAlert size={120} className="text-red-600" />
-                    <span className="text-4xl font-black text-red-600 mt-2 uppercase tracking-widest">REJECTED</span>
-                  </div>
-                </div>
-              )}
-            </div>
+        {/* Right Side: ML Kit Details & Action Panel */}
+        <div className="w-full md:w-[400px] flex flex-col bg-white shrink-0">
+          
+          <div className="flex items-center justify-between p-6 border-b border-gray-100">
+            <h3 className="font-display text-lg font-bold text-[#141414]">Verification Queue</h3>
+            <button 
+              onClick={onClose}
+              disabled={isProcessing}
+              className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-[#141414] transition-colors"
+            >
+              <X size={18} />
+            </button>
           </div>
 
-          {/* Sidebar Controls */}
-          <div className="w-full md:w-80 bg-white p-8 flex flex-col overflow-y-auto">
-            <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-6">Metadata</h4>
-              <div className="space-y-5">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400">
-                    <Calendar size={16} />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-gray-500">Uploaded</p>
-                    <p className="text-sm font-bold text-[#141414]">{new Date(doc.updatedAt).toLocaleDateString()}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400">
-                    <Maximize2 size={16} />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-gray-500">File Size</p>
-                    <p className="text-sm font-bold text-[#141414]">2.4 MB</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400">
-                    <UserIcon size={16} />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-gray-500">User ID</p>
-                    <p className="text-sm font-bold text-[#141414]">{displayId}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-8 pt-8 border-t border-gray-100">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-4">Verification Actions</h4>
-              <div className="space-y-3">
-                <button 
-                  disabled={updating || doc.status === "approved"}
-                  onClick={() => handleAction("approved")}
-                  className="w-full flex items-center justify-center gap-2 py-3.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {updating ? <Loader2 size={18} className="animate-spin" /> : <ShieldCheck size={18} />} 
-                  Approve & Verify
-                </button>
-                <button 
-                  disabled={updating || doc.status === "rejected"}
-                  onClick={() => handleAction("rejected")}
-                  className="w-full flex items-center justify-center gap-2 py-3.5 bg-red-50 text-red-700 hover:bg-red-100 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {updating ? <Loader2 size={18} className="animate-spin" /> : <ShieldAlert size={18} />} 
-                  Reject Document
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-8 pt-8 border-t border-gray-100">
-              <button className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-200 text-[#141414] rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm">
-                <Download size={16} /> Download Original PDF
-              </button>
-            </div>
+          <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
             
-            <div className="mt-auto pt-8">
-              <div className="bg-gray-50 text-gray-500 p-4 rounded-xl text-xs font-medium flex items-start gap-2">
-                <Lock size={14} className="shrink-0 mt-0.5" />
-                <p>Encrypted Audit Log: Verified by Vantage OS Node #882</p>
+            {/* Meta Data */}
+            <div>
+              <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Asset Metadata</h4>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center pb-3 border-b border-gray-50">
+                  <span className="text-xs font-medium text-gray-500">Client ID</span>
+                  <span className="text-sm font-bold text-[#141414]">{doc.userId || "N/A"}</span>
+                </div>
+                <div className="flex justify-between items-center pb-3 border-b border-gray-50">
+                  <span className="text-xs font-medium text-gray-500">Uploaded On</span>
+                  <span className="text-sm font-bold text-[#141414]">{new Date(doc.created_at || doc.updatedAt).toLocaleString()}</span>
+                </div>
               </div>
             </div>
+
+            {/* Google ML Kit Mock Data Area (To be replaced by actual DB data later) */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <BrainCircuit size={16} className="text-purple-600" />
+                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">ML Kit Extraction Data</h4>
+              </div>
+              
+              <div className="bg-purple-50/50 border border-purple-100 rounded-xl p-4 space-y-3">
+                {doc.status === 'pending_review' ? (
+                  <>
+                    <div className="flex items-center gap-2 text-xs font-medium text-purple-800">
+                      <ShieldCheck size={14} className="text-green-600" /> Document boundaries detected
+                    </div>
+                    <div className="flex items-center gap-2 text-xs font-medium text-purple-800">
+                      <ShieldCheck size={14} className="text-green-600" /> Text clarity sufficient for OCR
+                    </div>
+                    <div className="flex items-center gap-2 text-xs font-medium text-orange-700 mt-2 pt-2 border-t border-purple-100">
+                      <AlertTriangle size={14} className="text-orange-600" /> Requires manual confirmation of ID number
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-500 italic">Extraction data locked post-review.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Admin Notes */}
+            {doc.notes && (
+              <div>
+                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Agent Notes</h4>
+                <div className="p-4 bg-gray-50 rounded-xl">
+                  <p className="text-sm text-gray-700 leading-relaxed">{doc.notes}</p>
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* Action Footer */}
+          <div className="p-6 border-t border-gray-100 bg-gray-50">
+            {doc.status === 'pending_review' ? (
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => handleStatusUpdate('rejected')}
+                  disabled={isProcessing}
+                  className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-white border border-red-200 text-red-600 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-red-50 transition-colors disabled:opacity-50"
+                >
+                  {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}
+                  Reject
+                </button>
+                <button 
+                  onClick={() => handleStatusUpdate('approved')}
+                  disabled={isProcessing}
+                  className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-[#141414] text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-black transition-colors shadow-sm disabled:opacity-50"
+                >
+                  {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                  Approve
+                </button>
+              </div>
+            ) : (
+              <div className="w-full py-3.5 bg-gray-200 text-gray-500 rounded-xl text-xs font-bold uppercase tracking-wider text-center cursor-not-allowed">
+                Document {doc.status.replace('_', ' ')}
+              </div>
+            )}
+          </div>
+
         </div>
       </motion.div>
-    </motion.div>
+    </div>
   );
 };

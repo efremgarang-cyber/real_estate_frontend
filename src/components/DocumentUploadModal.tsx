@@ -1,129 +1,354 @@
-import React, { useState, useRef } from "react";
-import { X, UploadCloud, File, Loader2 } from "lucide-react";
+import React, { useState, useRef, useCallback } from "react";
+import { 
+  X, 
+  UploadCloud, 
+  Camera, 
+  FileText, 
+  Loader2, 
+  Image as ImageIcon,
+  CheckCircle2,
+  AlertCircle
+} from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { cn } from "../lib/utils";
 
 interface DocumentUploadModalProps {
   onClose: () => void;
   onSuccess: (payload: { file: File; type: string; userId?: string; notes?: string }) => Promise<void>;
 }
 
-export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({ onClose, onSuccess }) => {
-  const [file, setFile] = useState<File | null>(null);
-  const [type, setType] = useState("kyc");
-  const [userId, setUserId] = useState("");
-  const [notes, setNotes] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+const KYC_DOCUMENT_TYPES = [
+  { value: "national_id_front", label: "National ID (Front)" },
+  { value: "national_id_back", label: "National ID (Back)" },
+  { value: "passport", label: "Passport" },
+  { value: "kra_pin", label: "KRA PIN Certificate" },
+  { value: "selfie_verification", label: "Liveness Selfie" },
+  { value: "proof_of_address", label: "Proof of Address" },
+  { value: "title_deed", label: "Title Deed / Ownership" },
+  { value: "contract", label: "Signed Contract" }
+];
 
+export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({ onClose, onSuccess }) => {
+  const [isDragging, setIsDragging] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  
+  // Form State
+  const [userId, setUserId] = useState("");
+  const [docType, setDocType] = useState<string>("national_id_front");
+  const [notes, setNotes] = useState("");
+  
+  // Submission & Error State
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  // --- Drag and Drop Handlers ---
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    setError(null);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      processFile(e.dataTransfer.files[0]);
+    }
+  }, []);
+
+  // --- File Processing ---
+  const processFile = (selectedFile: File) => {
+    // Validate file type (Images and PDFs)
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+    if (!validTypes.includes(selectedFile.type)) {
+      setError("Invalid file format. Please upload a JPG, PNG, or PDF.");
+      return;
+    }
+
+    // Validate size (e.g., max 10MB)
+    if (selectedFile.size > 10 * 1024 * 1024) {
+      setError("File is too large. Maximum size is 10MB.");
+      return;
+    }
+
+    setFile(selectedFile);
+    setError(null);
+
+    // Generate preview for images
+    if (selectedFile.type.startsWith('image/')) {
+      const url = URL.createObjectURL(selectedFile);
+      setPreviewUrl(url);
+    } else {
+      setPreviewUrl(null); // It's a PDF
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      processFile(e.target.files[0]);
+    }
+  };
+
+  const clearFile = () => {
+    setFile(null);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    setError(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
+  };
+
+  // --- Submission ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file || !userId.trim()) return;
+    if (!file) {
+      setError("Please select or capture a document first.");
+      return;
+    }
+    if (!userId.trim()) {
+      setError("Client ID is required.");
+      return;
+    }
 
     setIsSubmitting(true);
-    await onSuccess({
-      file,
-      type,
-      userId: userId.trim(),
-      notes: notes.trim()
-    });
-    // The modal closes automatically via VaultPage on success, but we stop the spinner if it fails
-    setIsSubmitting(false); 
+    setError(null);
+    
+    try {
+      await onSuccess({ 
+        file, 
+        type: docType, 
+        userId: userId.trim(),
+        notes: notes.trim() 
+      });
+      // Modal closes via parent on success
+    } catch (err) {
+      setIsSubmitting(false);
+      // The parent VaultPage also catches this, but we release the lock here
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
-        
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
-          <h3 className="text-xl font-bold text-[#141414]">Upload to Vault</h3>
-          <button onClick={onClose} disabled={isSubmitting} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
-            <X className="w-5 h-5 text-gray-500" />
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+      {/* Backdrop */}
+      <motion.div 
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={() => !isSubmitting && onClose()}
+        className="absolute inset-0 bg-[#141414]/40 backdrop-blur-sm"
+      />
+
+      {/* Modal Content */}
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 10 }} 
+        animate={{ opacity: 1, scale: 1, y: 0 }} 
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        className="relative w-full max-w-xl bg-white rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100 shrink-0">
+          <div>
+            <h2 className="font-display text-xl font-bold text-[#141414]">Upload KYC Document</h2>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-1">Secure Vault Ingestion</p>
+          </div>
+          <button 
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-[#141414] transition-colors disabled:opacity-50"
+          >
+            <X size={20} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          
-          {/* File Dropzone */}
-          <div 
-            onClick={() => !isSubmitting && fileInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center transition-colors ${
-              file ? 'border-[#141414] bg-gray-50' : 'border-gray-300 hover:border-[#141414] hover:bg-gray-50 cursor-pointer'
-            }`}
-          >
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
-              className="hidden" 
-              accept=".pdf,.jpg,.jpeg,.png"
-            />
+        {/* Body */}
+        <div className="p-8 overflow-y-auto custom-scrollbar">
+          <form id="kyc-upload-form" onSubmit={handleSubmit} className="space-y-6">
             
-            {file ? (
-              <>
-                <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-[#141414] mb-2">
-                  <File size={20} />
-                </div>
-                <p className="text-sm font-bold text-[#141414] truncate max-w-[200px]">{file.name}</p>
-                <p className="text-xs text-gray-500 mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
-              </>
-            ) : (
-              <>
-                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 mb-2">
-                  <UploadCloud size={20} />
-                </div>
-                <p className="text-sm font-bold text-[#141414]">Click to select document</p>
-                <p className="text-xs text-gray-500 mt-1">PDF, JPG, or PNG up to 10MB</p>
-              </>
+            {error && (
+              <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-3">
+                <AlertCircle size={18} className="text-red-600 shrink-0 mt-0.5" />
+                <p className="text-sm font-medium text-red-600">{error}</p>
+              </div>
             )}
-          </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Client ID *</label>
-            <input 
-              type="text" 
-              required
-              value={userId}
-              onChange={(e) => setUserId(e.target.value)}
-              placeholder="e.g. USR-3322"
-              className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] text-sm"
-            />
-          </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* Client ID */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Client ID *</label>
+                <input 
+                  type="text" 
+                  required
+                  value={userId}
+                  onChange={(e) => setUserId(e.target.value)}
+                  placeholder="e.g. USR-3322"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm font-medium text-[#141414]"
+                />
+              </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Document Type *</label>
-            <select 
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] text-sm"
-            >
-              <option value="kyc">KYC / Identity</option>
-              <option value="title_deed">Title Deed</option>
-              <option value="contract">Signed Contract</option>
-            </select>
-          </div>
+              {/* Document Type Selector */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Classification *</label>
+                <select 
+                  value={docType}
+                  onChange={(e) => setDocType(e.target.value)}
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm font-medium text-[#141414]"
+                >
+                  {KYC_DOCUMENT_TYPES.map(type => (
+                    <option key={type.value} value={type.value}>{type.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Notes (Optional)</label>
-            <textarea 
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add verification notes..."
-              rows={2}
-              className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] text-sm resize-none"
-            />
-          </div>
+            {/* File Ingestion Area */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Document Capture *</label>
+              
+              <AnimatePresence mode="wait">
+                {!file ? (
+                  <motion.div 
+                    key="upload-zone"
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    className={cn(
+                      "border-2 border-dashed rounded-2xl p-8 text-center transition-all duration-200 flex flex-col items-center justify-center min-h-[200px]",
+                      isDragging ? "border-[#141414] bg-gray-50 scale-[1.02]" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50/50"
+                    )}
+                  >
+                    <div className="w-16 h-16 rounded-full bg-white shadow-sm border border-gray-100 flex items-center justify-center mb-4">
+                      <UploadCloud size={24} className="text-gray-400" />
+                    </div>
+                    <p className="text-sm font-bold text-[#141414] mb-1">Drag and drop document here</p>
+                    <p className="text-xs text-gray-400 mb-6">Supports JPG, PNG, or PDF (Max 10MB)</p>
+                    
+                    <div className="flex flex-wrap justify-center items-center gap-3">
+                      {/* Standard File Upload */}
+                      <button 
+                        type="button"
+                        disabled={isSubmitting}
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-[#141414] hover:bg-gray-50 transition-colors shadow-sm"
+                      >
+                        Browse Files
+                      </button>
+                      
+                      {/* Mobile Camera Capture */}
+                      <button 
+                        type="button"
+                        disabled={isSubmitting}
+                        onClick={() => cameraInputRef.current?.click()}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-[#141414] text-white rounded-xl text-xs font-bold hover:bg-black transition-colors shadow-sm"
+                      >
+                        <Camera size={14} /> Open Camera
+                      </button>
+                    </div>
 
-          {/* The fix is here: Ensure both file AND userId exist before enabling */}
+                    {/* Hidden Inputs */}
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      onChange={handleFileSelect} 
+                      className="hidden" 
+                      accept=".pdf,.jpg,.jpeg,.png,.webp" 
+                    />
+                    <input 
+                      type="file" 
+                      ref={cameraInputRef} 
+                      onChange={handleFileSelect} 
+                      className="hidden" 
+                      accept="image/*" 
+                      capture="environment" // Forces the native camera UI on mobile devices
+                    />
+                  </motion.div>
+                ) : (
+                  <motion.div 
+                    key="file-preview"
+                    initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                    className="border border-gray-200 rounded-2xl overflow-hidden bg-gray-50"
+                  >
+                    {previewUrl ? (
+                      <div className="aspect-video bg-[#141414] relative flex items-center justify-center">
+                        <img src={previewUrl} alt="Preview" className="max-w-full max-h-full object-contain" />
+                        <div className="absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1.5 bg-black/60 backdrop-blur-md rounded-full text-xs font-semibold text-white">
+                          <CheckCircle2 size={14} className="text-green-400" /> Image Ready
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="aspect-video flex flex-col items-center justify-center bg-gray-100 border-b border-gray-200">
+                        <FileText size={48} className="text-gray-300 mb-3" />
+                        <span className="text-xs font-bold uppercase tracking-wider text-gray-500">PDF Document Selected</span>
+                      </div>
+                    )}
+                    
+                    <div className="p-4 bg-white flex items-center justify-between">
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
+                          {file.type.includes('pdf') ? <FileText size={18} className="text-gray-500" /> : <ImageIcon size={18} className="text-gray-500" />}
+                        </div>
+                        <div className="truncate">
+                          <p className="text-sm font-bold text-[#141414] truncate">{file.name}</p>
+                          <p className="text-xs font-medium text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                        </div>
+                      </div>
+                      <button 
+                        type="button" 
+                        disabled={isSubmitting}
+                        onClick={clearFile}
+                        className="text-xs font-bold text-gray-400 hover:text-red-500 transition-colors shrink-0 px-3 py-2 rounded-lg hover:bg-red-50 disabled:opacity-50"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Optional Notes */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Extraction Notes (Optional)</label>
+              <textarea 
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add any specific context for the verification team or ML extraction rules..."
+                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm font-medium text-[#141414] min-h-[80px] resize-y"
+              />
+            </div>
+          </form>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="px-8 py-5 border-t border-gray-100 bg-gray-50 flex items-center justify-end gap-3 shrink-0">
+          <button 
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="px-5 py-2.5 text-sm font-bold text-gray-500 hover:text-[#141414] transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
           <button 
             type="submit"
+            form="kyc-upload-form"
             disabled={!file || !userId.trim() || isSubmitting}
-            className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#141414] text-white rounded-xl font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-6 py-2.5 bg-[#141414] text-white rounded-xl text-sm font-bold hover:bg-black transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <UploadCloud size={18} />}
+            {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <UploadCloud size={16} />}
             {isSubmitting ? "Encrypting & Uploading..." : "Deposit to Vault"}
           </button>
+        </div>
 
-        </form>
-      </div>
+      </motion.div>
     </div>
   );
 };

@@ -11,7 +11,7 @@ export const vaultApi = {
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
     
-    // Nests Makao uploads in a dedicated folder to separate them from Drive X files
+    // Nests Makao uploads in a dedicated folder
     const filePath = `makao/${documentType}s/${fileName}`; 
 
     const { error } = await supabase.storage
@@ -27,32 +27,26 @@ export const vaultApi = {
       throw new Error('Failed to upload file to storage bucket.');
     }
 
-    const { data: { publicUrl } } = supabase.storage
-      .from(bucketName)
-      .getPublicUrl(filePath);
-
-    return publicUrl;
+    // CRITICAL FIX: Return the raw internal path, NOT the public URL.
+    // This is what gets saved to the Laravel database as `s3_path`.
+    return filePath; 
   },
 
-  getSignedUrl: async (publicUrl: string): Promise<string> => {
+  getSignedUrl: async (filePath: string): Promise<string> => {
     const bucketName = import.meta.env.VITE_SUPABASE_BUCKET;
-    if (!bucketName || !publicUrl) return publicUrl;
+    if (!bucketName || !filePath) return filePath;
 
-    // Detect if the URL is an unsigned Supabase URL
-    const pathMarker = `/object/public/${bucketName}/`;
-    if (!publicUrl.includes(pathMarker)) return publicUrl; // Skip if it's already signed or external
+    // If it's already a full HTTP URL (e.g., an external placeholder or old data), just return it
+    if (filePath.startsWith('http')) return filePath;
 
-    // Extract the raw file path (e.g., "makao/property_images/1780405189441.jpg")
-    const filePath = publicUrl.split(pathMarker)[1];
-
-    // Request a secure URL valid for 1 hour (3600 seconds)
+    // Request a secure URL valid for 1 hour (3600 seconds) using the raw path
     const { data, error } = await supabase.storage
       .from(bucketName)
       .createSignedUrl(filePath, 3600);
 
     if (error || !data) {
       console.error("Failed to sign URL:", error);
-      return publicUrl; // Fallback to original if signing fails
+      return filePath; // Fallback
     }
 
     return data.signedUrl;

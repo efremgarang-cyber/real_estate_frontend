@@ -189,8 +189,7 @@ export const VaultPage: React.FC = () => {
           <DocumentViewer
             doc={selectedDoc} 
             onClose={() => setSelectedDoc(null)}
-            onUpdateStatus={async (status: "pending" | "approved" | "rejected") => {
-              // Use mutateAsync so it returns a Promise to the DocumentViewer
+            onUpdateStatus={async (status: "pending_review" | "approved" | "rejected") => {
               await updateStatusMutation.mutateAsync({ docId: selectedDoc.id, status });
             }}
           />

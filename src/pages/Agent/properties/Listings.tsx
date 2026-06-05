@@ -44,7 +44,7 @@ export const PropertiesPage: React.FC = () => {
     queryKey: ['properties', page],
     queryFn: async () => {
       const response = await propertyApi.getAll(page);
-      const items = response.data || []; 
+      const items = response.data || [];
 
       return await Promise.all(
         (Array.isArray(items) ? items : []).map(async (property: any) => {
