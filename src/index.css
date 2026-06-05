@@ -1,34 +1,41 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  /* Retaining your preferred fonts */
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Cormorant Garamond", serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
 @layer base {
   body {
-    @apply bg-[#E4E3E0] text-[#141414] font-sans;
+    @apply bg-[#E4E3E0] dark:bg-[#0A0A0A] text-[#141414] dark:text-gray-100 font-sans transition-colors duration-300;
   }
 }
 
 @layer components {
   .dashboard-card {
-    @apply bg-white border border-[#141414] p-6 shadow-[4px_4px_0px_0px_rgba(20,20,20,1)];
+    @apply bg-white dark:bg-[#141414] border border-[#141414] dark:border-gray-800 p-6 
+           shadow-[4px_4px_0px_0px_rgba(20,20,20,1)] dark:shadow-none;
   }
 
   .btn-primary {
-    @apply bg-[#141414] text-[#E4E3E0] px-4 py-2 hover:bg-[#141414]/90 transition-all font-medium;
+    @apply bg-[#141414] dark:bg-white text-[#E4E3E0] dark:text-[#141414] 
+           px-4 py-2 hover:bg-[#141414]/90 dark:hover:bg-gray-200 transition-all font-medium;
   }
 
   .btn-secondary {
-    @apply border border-[#141414] text-[#141414] px-4 py-2 hover:bg-[#141414] hover:text-[#E4E3E0] transition-all font-medium;
+    @apply border border-[#141414] dark:border-gray-600 text-[#141414] dark:text-gray-300 
+           px-4 py-2 hover:bg-[#141414] dark:hover:bg-gray-800 hover:text-[#E4E3E0] transition-all font-medium;
   }
 
   .input-field {
-    @apply bg-white border border-[#141414] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#141414] w-full;
+    @apply bg-white dark:bg-[#1A1A1A] border border-[#141414] dark:border-gray-700 
+           px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#141414] dark:focus:ring-gray-500 w-full;
   }
 
   .data-row {
-    @apply border-b border-[#141414] py-3 px-4 hover:bg-[#141414] hover:text-[#E4E3E0] transition-all cursor-pointer;
+    @apply border-b border-[#141414] dark:border-gray-800 py-3 px-4 
+           hover:bg-[#141414] dark:hover:bg-gray-800 hover:text-[#E4E3E0] transition-all cursor-pointer;
   }
 }

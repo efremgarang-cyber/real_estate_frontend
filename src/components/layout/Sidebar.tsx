@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Settings, ChevronLeft, ChevronRight, LucideIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, LucideIcon } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useAuth } from "../../lib/AuthContext";
 
@@ -59,7 +59,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ navItems, onOpenProfile, userI
       {/* Navigation Links */}
       <nav className="flex-1 px-4 space-y-2 mt-2">
         {navItems.map((item) => {
-          const isActive = location.pathname === item.href;
+          const isActive = location.pathname.startsWith(item.href);
           return (
             <Link
               key={item.href}
@@ -87,22 +87,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ navItems, onOpenProfile, userI
 
       {/* Bottom Actions */}
       <div className="mt-auto flex flex-col gap-2 p-4 mb-4">
-        <Link
-          to="/settings"
-          title={isCollapsed ? "Settings" : undefined}
-          className={cn(
-            "flex items-center rounded-xl font-medium transition-all text-sm group overflow-hidden whitespace-nowrap text-gray-500 hover:bg-gray-50 hover:text-[#141414]",
-            isCollapsed ? "justify-center p-3" : "gap-3 px-4 py-3.5"
-          )}
-        >
-          <Settings size={20} className="shrink-0 text-gray-400 group-hover:text-[#141414]" />
-          {!isCollapsed && (
-            <span className="animate-in fade-in duration-300">
-              Settings
-            </span>
-          )}
-        </Link>
-
         <button 
           type="button"
           onClick={onOpenProfile}

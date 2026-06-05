@@ -1,18 +1,10 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: 'class', 
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
-  theme: {
-    extend: {
-      fontFamily: {
-        // DM Sans becomes the default for all text (p, span, div, inputs)
-        sans: ['"DM Sans"', 'sans-serif'],
-        // Cormorant Garamond for headers, titles, and modal headers
-        display: ['"Cormorant Garamond"', 'serif'],
-      },
-    },
-  },
+  // Remove the 'theme' object entirely, as it's now in index.css
   plugins: [],
 }

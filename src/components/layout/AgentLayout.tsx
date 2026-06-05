@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useLocation, Outlet } from "react-router-dom";
-import { BarChart3, Home, Users, ShieldCheck, Menu } from "lucide-react";
+import { BarChart3, Home, Users, ShieldCheck, Menu, Settings } from "lucide-react";
 import { useAuth } from "../../lib/AuthContext";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -15,6 +15,7 @@ const agentNavItems = [
   { name: "Properties", href: "/agent/properties", icon: Home },
   { name: "Leads", href: "/agent/leads", icon: Users },
   { name: "KYC Vault", href: "/agent/vault", icon: ShieldCheck },
+  { name: "Settings", href: "/agent/settings", icon: Settings },
 ];
 
 export const AgentLayout: React.FC = () => {
@@ -23,23 +24,21 @@ export const AgentLayout: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
 
-  const currentPageName = agentNavItems.find(i => i.href === location.pathname)?.name || "Vantage OS";
+  // Use startsWith to handle sub-routes correctly
+  const currentPageName = agentNavItems.find(i => location.pathname.startsWith(i.href))?.name || "Vantage OS";
   const userInitials = profile?.name?.[0] || user?.email?.[0] || "U";
 
   return (
     <div className="flex h-screen bg-[#E4E3E0] font-sans overflow-hidden">
       
-      {/* Decoupled, Reusable Sidebar Module */}
       <Sidebar 
         navItems={agentNavItems} 
         onOpenProfile={() => setShowProfileModal(true)} 
         userInitials={userInitials} 
       />
 
-      {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         
-        {/* Top Header - Mobile Toggle */}
         <header className="md:hidden flex items-center justify-between p-5 bg-white border-b border-gray-100 shadow-sm z-20">
           <div className="flex items-center gap-2">
             <img src="/makao-icon-dark.svg" alt="Makao Logo" className="w-6 h-6 object-contain" />
@@ -54,19 +53,19 @@ export const AgentLayout: React.FC = () => {
           </button>
         </header>
 
-        {/* Dynamic Page Header (Desktop & Mobile) */}
+        {/* Dynamic Page Header with Role-Based Workspace Context */}
         <div className="px-6 md:px-10 py-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 z-10">
           <div>
             <h2 className="font-display text-2xl font-bold text-[#141414]">
               {currentPageName}
             </h2>
-            <p className="text-sm font-medium text-gray-500 mt-1">
-              Welcome back, {profile?.name?.split(' ')[0] || "User"}
+            <p className="text-sm font-medium text-gray-500 mt-1 capitalize">
+              {user?.role?.toLowerCase() === "admin" ? "Administrative Workspace" : "Agent Workspace"} 
+              • {profile?.name?.split(' ')[0] || "User"}
             </p>
           </div>
         </div>
 
-        {/* Page Content Viewport using React Router Context Outlet */}
         <div className="flex-1 overflow-y-auto px-6 md:px-10 pb-10">
           <AnimatePresence mode="wait">
             <motion.div
@@ -83,7 +82,6 @@ export const AgentLayout: React.FC = () => {
         </div>
       </main>
 
-      {/* Overlays */}
       <AnimatePresence>
         {mobileMenuOpen && (
           <MobileMenu 

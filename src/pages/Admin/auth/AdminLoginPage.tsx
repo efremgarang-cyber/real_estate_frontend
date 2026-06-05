@@ -24,7 +24,9 @@ export const AdminLoginPage: React.FC = () => {
   // ── Intelligent Routing Matrix ──
   useEffect(() => {
     if (user && profile) {
-      const role = profile.role?.toLowerCase() || 'client';
+      // Normalize role string to handle database variations gracefully
+      const role = profile.role?.toLowerCase().trim() || 'client';
+      
       if (role === 'admin') {
         navigate("/admin/dashboard", { replace: true });
       } else if (role === 'agent') {
