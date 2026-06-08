@@ -209,7 +209,7 @@ export interface KycDocument {
   id: string;
   agencyId: string;
   userId?: string;
-  type: 'passport' | 'national_id' | 'title_deed' | 'utility_bill' | string;
+  type: string;
   status: 'pending' | 'approved' | 'rejected';
   filePath: string;
   fileName: string;

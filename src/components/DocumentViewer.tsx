@@ -54,14 +54,15 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose, on
         
         {/* Left Side: Document Visualizer */}
         <div className="flex-1 bg-gray-100 relative flex flex-col border-r border-gray-200">
-          <div className="absolute top-4 left-4 z-10 flex gap-2">
-            <span className="px-3 py-1.5 bg-black/60 backdrop-blur-md rounded-full text-[10px] font-bold uppercase tracking-wider text-white">
-              {doc.type.replace(/_/g, ' ')}
+          <div className="flex items-center gap-4 bg-[#323639] px-4 py-3 shrink-0 shadow-sm z-10">
+            <span className="text-xs font-bold text-white uppercase tracking-wider">
+              {(doc.type ?? 'Uncategorized').replace(/_/g, ' ')}
             </span>
+            
             <span className={cn(
-              "px-3 py-1.5 backdrop-blur-md rounded-full text-[10px] font-bold uppercase tracking-wider text-white",
-              doc.status === 'approved' ? "bg-green-600/80" : 
-              doc.status === 'rejected' ? "bg-red-600/80" : "bg-orange-500/80"
+              "text-[10px] font-bold uppercase tracking-widest",
+              doc.status === 'approved' ? "text-green-500" : 
+              doc.status === 'rejected' ? "text-red-500" : "text-orange-500"
             )}>
               {doc.status.replace('_', ' ')}
             </span>

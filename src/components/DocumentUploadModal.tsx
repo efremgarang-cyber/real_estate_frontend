@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { 
   X, 
   UploadCloud, 
@@ -11,10 +11,13 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../lib/utils";
+// Make sure these paths match your project structure!
+import { supabase } from "../lib/supabase"; 
+import { api } from "../lib/api";
 
 interface DocumentUploadModalProps {
   onClose: () => void;
-  onSuccess: (payload: { file: File; type: string; userId?: string; notes?: string }) => Promise<void>;
+  onSuccess: () => void; 
 }
 
 const KYC_DOCUMENT_TYPES = [
@@ -32,9 +35,9 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({ onClos
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  
-  // Form State
-  const [userId, setUserId] = useState("");
+  const [clientName, setClientName] = useState("");
+  const [clientEmail, setClientEmail] = useState("");
+  const [clientPhone, setClientPhone] = useState("");
   const [docType, setDocType] = useState<string>("national_id_front");
   const [notes, setNotes] = useState("");
   
@@ -68,14 +71,12 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({ onClos
 
   // --- File Processing ---
   const processFile = (selectedFile: File) => {
-    // Validate file type (Images and PDFs)
     const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
     if (!validTypes.includes(selectedFile.type)) {
       setError("Invalid file format. Please upload a JPG, PNG, or PDF.");
       return;
     }
 
-    // Validate size (e.g., max 10MB)
     if (selectedFile.size > 10 * 1024 * 1024) {
       setError("File is too large. Maximum size is 10MB.");
       return;
@@ -84,12 +85,11 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({ onClos
     setFile(selectedFile);
     setError(null);
 
-    // Generate preview for images
     if (selectedFile.type.startsWith('image/')) {
       const url = URL.createObjectURL(selectedFile);
       setPreviewUrl(url);
     } else {
-      setPreviewUrl(null); // It's a PDF
+      setPreviewUrl(null);
     }
   };
 
@@ -108,15 +108,11 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({ onClos
     if (cameraInputRef.current) cameraInputRef.current.value = "";
   };
 
-  // --- Submission ---
+  // --- Submission Logic with Supabase & Laravel ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) {
       setError("Please select or capture a document first.");
-      return;
-    }
-    if (!userId.trim()) {
-      setError("Client ID is required.");
       return;
     }
 
@@ -124,36 +120,62 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({ onClos
     setError(null);
     
     try {
-      await onSuccess({ 
-        file, 
-        type: docType, 
-        userId: userId.trim(),
-        notes: notes.trim() 
+      // 1. Generate a safe file path (using the selected integer ID to keep paths clean)
+      const fileExt = file.name.split('.').pop();
+      const safeName = clientName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+      const filePath = `clients/${safeName}-${Date.now()}/${fileExt}`;
+
+      // 2. Upload directly to Supabase from the React client
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('user-files')
+        .upload(filePath, file);
+
+      if (uploadError) throw new Error(`Supabase Upload Failed: ${uploadError.message}`);
+
+      // 3. Generate the 60-second temporary signed URL for the OCR API
+      const { data: signedData, error: signError } = await supabase.storage
+        .from('user-files')
+        .createSignedUrl(uploadData.path, 60);
+
+      if (signError) throw new Error(`Failed to generate OCR URL: ${signError.message}`);
+
+      // 4. Send the payload to your Laravel Backend
+      await api.post('/vault/documents', {
+        s3_path: uploadData.path,
+        type: docType,
+        temporary_url: signedData.signedUrl,
+        client_name: clientName.trim(),
+        client_email: clientEmail.trim(),
+        client_phone: clientPhone.trim(),
+        notes: notes.trim()
       });
-      // Modal closes via parent on success
-    } catch (err) {
+
+      // 5. Trigger parent success (to refresh the table/UI) and close
+      onSuccess();
+      onClose();
+
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "An unexpected error occurred during upload.");
+    } finally {
       setIsSubmitting(false);
-      // The parent VaultPage also catches this, but we release the lock here
     }
   };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-      {/* Backdrop */}
       <motion.div 
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         onClick={() => !isSubmitting && onClose()}
         className="absolute inset-0 bg-[#141414]/40 backdrop-blur-sm"
       />
 
-      {/* Modal Content */}
       <motion.div 
         initial={{ opacity: 0, scale: 0.95, y: 10 }} 
         animate={{ opacity: 1, scale: 1, y: 0 }} 
         exit={{ opacity: 0, scale: 0.95, y: 10 }}
         className="relative w-full max-w-xl bg-white rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100 shrink-0">
           <div>
             <h2 className="font-display text-xl font-bold text-[#141414]">Upload KYC Document</h2>
@@ -168,7 +190,6 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({ onClos
           </button>
         </div>
 
-        {/* Body */}
         <div className="p-8 overflow-y-auto custom-scrollbar">
           <form id="kyc-upload-form" onSubmit={handleSubmit} className="space-y-6">
             
@@ -180,26 +201,59 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({ onClos
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* Client ID */}
+              
+              {/* SMART COMPONENT: Client Dropdown */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Client ID *</label>
+                <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Client Full Name *</label>
                 <input 
-                  type="text" 
-                  required
-                  value={userId}
-                  onChange={(e) => setUserId(e.target.value)}
-                  placeholder="e.g. USR-3322"
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm font-medium text-[#141414]"
+                  type="text" required
+                  value={clientName} onChange={(e) => setClientName(e.target.value)}
+                  placeholder="e.g. Jane Doe"
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm font-medium text-[#141414]"
                 />
               </div>
 
-              {/* Document Type Selector */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Client Email *</label>
+                <input 
+                  type="email" required
+                  value={clientEmail} onChange={(e) => setClientEmail(e.target.value)}
+                  placeholder="jane@example.com"
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm font-medium text-[#141414]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Phone Number</label>
+                <input 
+                  type="tel"
+                  value={clientPhone} onChange={(e) => setClientPhone(e.target.value)}
+                  placeholder="+254 700 000 000"
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm font-medium text-[#141414]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Classification *</label>
+                <select 
+                  value={docType} onChange={(e) => setDocType(e.target.value)} disabled={isSubmitting}
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm font-medium text-[#141414]"
+                >
+                  {KYC_DOCUMENT_TYPES.map(type => (
+                    <option key={type.value} value={type.value}>{type.label}</option>
+                  ))}
+                </select>
+              </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Classification *</label>
                 <select 
                   value={docType}
                   onChange={(e) => setDocType(e.target.value)}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm font-medium text-[#141414]"
+                  disabled={isSubmitting}
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm font-medium text-[#141414]"
                 >
                   {KYC_DOCUMENT_TYPES.map(type => (
                     <option key={type.value} value={type.value}>{type.label}</option>
@@ -208,7 +262,6 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({ onClos
               </div>
             </div>
 
-            {/* File Ingestion Area */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Document Capture *</label>
               
@@ -232,28 +285,25 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({ onClos
                     <p className="text-xs text-gray-400 mb-6">Supports JPG, PNG, or PDF (Max 10MB)</p>
                     
                     <div className="flex flex-wrap justify-center items-center gap-3">
-                      {/* Standard File Upload */}
                       <button 
                         type="button"
                         disabled={isSubmitting}
                         onClick={() => fileInputRef.current?.click()}
-                        className="px-5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-[#141414] hover:bg-gray-50 transition-colors shadow-sm"
+                        className="cursor-pointer px-5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-[#141414] hover:bg-gray-50 transition-colors shadow-sm"
                       >
                         Browse Files
                       </button>
                       
-                      {/* Mobile Camera Capture */}
                       <button 
                         type="button"
                         disabled={isSubmitting}
                         onClick={() => cameraInputRef.current?.click()}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-[#141414] text-white rounded-xl text-xs font-bold hover:bg-black transition-colors shadow-sm"
+                        className="flex items-center gap-2 cursor-pointer px-5 py-2.5 bg-[#141414] text-white rounded-xl text-xs font-bold hover:bg-black transition-colors shadow-sm"
                       >
                         <Camera size={14} /> Open Camera
                       </button>
                     </div>
 
-                    {/* Hidden Inputs */}
                     <input 
                       type="file" 
                       ref={fileInputRef} 
@@ -267,7 +317,7 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({ onClos
                       onChange={handleFileSelect} 
                       className="hidden" 
                       accept="image/*" 
-                      capture="environment" // Forces the native camera UI on mobile devices
+                      capture="environment" 
                     />
                   </motion.div>
                 ) : (
@@ -304,7 +354,7 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({ onClos
                         type="button" 
                         disabled={isSubmitting}
                         onClick={clearFile}
-                        className="text-xs font-bold text-gray-400 hover:text-red-500 transition-colors shrink-0 px-3 py-2 rounded-lg hover:bg-red-50 disabled:opacity-50"
+                        className="text-xs font-bold cursor-pointer text-gray-400 hover:text-red-500 transition-colors shrink-0 px-3 py-2 rounded-lg hover:bg-red-50 disabled:opacity-50"
                       >
                         Remove
                       </button>
@@ -314,7 +364,6 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({ onClos
               </AnimatePresence>
             </div>
 
-            {/* Optional Notes */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Extraction Notes (Optional)</label>
               <textarea 
@@ -327,21 +376,20 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({ onClos
           </form>
         </div>
 
-        {/* Footer Actions */}
         <div className="px-8 py-5 border-t border-gray-100 bg-gray-50 flex items-center justify-end gap-3 shrink-0">
           <button 
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="px-5 py-2.5 text-sm font-bold text-gray-500 hover:text-[#141414] transition-colors disabled:opacity-50"
+            className="cursor-pointer px-5 py-2.5 text-sm font-bold text-gray-500 hover:text-[#141414] transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button 
             type="submit"
             form="kyc-upload-form"
-            disabled={!file || !userId.trim() || isSubmitting}
-            className="flex items-center gap-2 px-6 py-2.5 bg-[#141414] text-white rounded-xl text-sm font-bold hover:bg-black transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!file || isSubmitting}
+            className="cursor-pointer flex items-center gap-2 px-6 py-2.5 bg-[#141414] text-white rounded-xl text-sm font-bold hover:bg-black transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <UploadCloud size={16} />}
             {isSubmitting ? "Encrypting & Uploading..." : "Deposit to Vault"}
