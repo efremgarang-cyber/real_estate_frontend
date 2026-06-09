@@ -123,7 +123,7 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({ onClos
       // 1. Generate a safe file path (using the selected integer ID to keep paths clean)
       const fileExt = file.name.split('.').pop();
       const safeName = clientName.toLowerCase().replace(/[^a-z0-9]/g, '-');
-      const filePath = `clients/${safeName}-${Date.now()}/${fileExt}`;
+      const filePath = `clients/${safeName}-${Date.now()}.${fileExt}`;
 
       // 2. Upload directly to Supabase from the React client
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -200,63 +200,65 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({ onClos
               </div>
             )}
 
+            
+        
+            {/* SMART COMPONENT: Client Dropdown */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              
-              {/* SMART COMPONENT: Client Dropdown */}
               <div>
-                <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Client Full Name *</label>
-                <input 
-                  type="text" required
-                  value={clientName} onChange={(e) => setClientName(e.target.value)}
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">
+                  Client Full Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
                   placeholder="e.g. Jane Doe"
                   className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm font-medium text-[#141414]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Client Email *</label>
-                <input 
-                  type="email" required
-                  value={clientEmail} onChange={(e) => setClientEmail(e.target.value)}
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">
+                  Client Email *
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={clientEmail}
+                  onChange={(e) => setClientEmail(e.target.value)}
                   placeholder="jane@example.com"
                   className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm font-medium text-[#141414]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Phone Number</label>
-                <input 
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">
+                  Phone Number
+                </label>
+                <input
                   type="tel"
-                  value={clientPhone} onChange={(e) => setClientPhone(e.target.value)}
+                  value={clientPhone}
+                  onChange={(e) => setClientPhone(e.target.value)}
                   placeholder="+254 700 000 000"
                   className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm font-medium text-[#141414]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Classification *</label>
-                <select 
-                  value={docType} onChange={(e) => setDocType(e.target.value)} disabled={isSubmitting}
-                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm font-medium text-[#141414]"
-                >
-                  {KYC_DOCUMENT_TYPES.map(type => (
-                    <option key={type.value} value={type.value}>{type.label}</option>
-                  ))}
-                </select>
-              </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Classification *</label>
-                <select 
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">
+                  Classification *
+                </label>
+                <select
                   value={docType}
                   onChange={(e) => setDocType(e.target.value)}
                   disabled={isSubmitting}
                   className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm font-medium text-[#141414]"
                 >
-                  {KYC_DOCUMENT_TYPES.map(type => (
-                    <option key={type.value} value={type.value}>{type.label}</option>
+                  {KYC_DOCUMENT_TYPES.map((type) => (
+                    <option key={type.value} value={type.value}>
+                      {type.label}
+                    </option>
                   ))}
                 </select>
               </div>
