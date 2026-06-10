@@ -36,7 +36,6 @@ export const AdminLayout: React.FC = () => {
     <div className="flex h-screen bg-[#E4E3E0] dark:bg-[#0A0A0A] font-sans overflow-hidden transition-colors duration-300">
       <Sidebar 
         navItems={adminNavItems} 
-        onOpenProfile={() => setShowProfileModal(true)} 
         userInitials={userInitials} 
       />
 

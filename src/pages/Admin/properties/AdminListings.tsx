@@ -7,6 +7,7 @@ import { formatCurrency, cn } from "../../../lib/utils";
 import { propertyApi } from "../../../api/properties";
 import { vaultApi } from "../../../api/vault";
 import { AdminNewListing } from "./AdminNewListing";
+import {api} from "../../../lib/api";
 
 export const AdminListings: React.FC = () => {
   const navigate = useNavigate();
@@ -16,11 +17,14 @@ export const AdminListings: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const { data: properties = [], isLoading, isError } = useQuery({
-    queryKey: ["adminGlobalListingsGrid"],
-    queryFn: async () => {
-      const response = await propertyApi.getAll(1); 
-      const items = response.data || [];
-
+  queryKey: ["adminGlobalListingsGrid"],
+  queryFn: async () => {
+    // CHANGE THIS: Use the admin-specific property API method
+    const response = await api.get('/admin/properties'); 
+    
+    // Note: If using pagination, Laravel returns { data: [...], ... }
+    // If not paginated, it returns [...] directly. Adjust based on your API response.
+    const items = response.data.data || response.data || [];
       return await Promise.all(
         items.map(async (item: any) => {
           let rawUrl = item?.images?.[0];
