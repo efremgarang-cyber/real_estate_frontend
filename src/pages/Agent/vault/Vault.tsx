@@ -6,64 +6,34 @@ import { StatusText } from "../../../components/StatusText";
 import { DocumentUploadModal } from "../../../components/DocumentUploadModal";
 import { DocumentViewer } from "../../../components/DocumentViewer";
 import { api } from "../../../lib/api";
-import { vaultApi } from "../../../api/vault";
 import { KycDocument } from "../../../types";
 
-interface SecureKycDocument extends KycDocument {
-  signedUrl?: string;
-}
 
 export const VaultPage: React.FC = () => {
   const queryClient = useQueryClient();
-  const [selectedDoc, setSelectedDoc] = useState<SecureKycDocument | null>(null);
+  const [selectedDoc, setSelectedDoc] = useState<KycDocument | null>(null);
   const [searchTerm, setSearchTerm]   = useState("");
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // 1. Fetch & Auto-sign Vault Documents
   const { data: docs = [], isLoading } = useQuery({
     queryKey: ['vaultDocuments'],
     queryFn: async () => {
-      const response = await api.get('/vault/documents');
-      const data = response.data?.data || response.data || [];
+      // Pointing strictly to your Laravel API
+      const response = await api.get('/vault/documents'); 
+      const rawData = response.data?.data || response.data || [];
       
-      return await Promise.all(
-        data.map(async (doc: any) => {
-          const rawUrl = doc.s3_path || doc.url || doc.file_path;
-          const signedUrl = rawUrl ? await vaultApi.getSignedUrl(rawUrl) : undefined;
-          return { ...doc, signedUrl };
-        })
-      );
+      // Sanitize the local data immediately to prevent UI crashes
+      return rawData.map((doc: any) => ({
+        ...doc, 
+        // Force defaults if the database record is missing these fields
+        type: doc.document_type,
+        status: doc.verification_status ?? 'pending_review'
+      }));
     }
   });
 
-  // 2. Mutations
-  const uploadMutation = useMutation({
-    mutationFn: async (payload: { file: File; type: string; userId?: string; notes?: string; }) => {
-      let secureDocType: 'kyc' | 'title_deed' | 'property_image' = 'kyc';
-      if (payload.type === 'title_deed') secureDocType = 'title_deed';
-      else if (payload.type === 'property_image') secureDocType = 'property_image';
-
-      const supabaseUrl = await vaultApi.executeSecureUpload(payload.file, secureDocType);
-      await api.post('/vault/documents', {
-        s3_path:  supabaseUrl,
-        type:     payload.type,
-        user_id:  payload.userId  ?? null,
-        notes:    payload.notes   ?? null,
-        status:   'pending_review',
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['vaultDocuments'] });
-      setShowUploadModal(false);
-      setUploadError(null);
-    },
-    onError: (error: any) => {
-      console.error("Document upload failed:", error);
-      setUploadError(error?.response?.data?.message || error?.message || "Upload failed. Please try again.");
-    }
-  });
-
+  // 2. Status Update Mutation
   const updateStatusMutation = useMutation({
     mutationFn: async ({ docId, status }: { docId: string, status: string }) => {
       return await api.patch(`/v1/vault/documents/${docId}/status`, { status });
@@ -75,11 +45,11 @@ export const VaultPage: React.FC = () => {
   });
 
   const filteredDocs = useMemo(() => {
-    return docs.filter((doc: SecureKycDocument) =>
-      doc.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (doc.userId || "").toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [docs, searchTerm]);
+  return docs.filter((doc: KycDocument) =>
+    String(doc.type ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    String(doc.userId ?? "").toLowerCase().includes(searchTerm.toLowerCase())
+  );
+}, [docs, searchTerm]);
 
   return (
     <div className="space-y-6 font-sans pb-12">
@@ -89,27 +59,21 @@ export const VaultPage: React.FC = () => {
           <input
             type="text" placeholder="Search by client ID or document type..."
             value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm shadow-sm"
+            className="w-full pl-11 pr-4 py-3 text-gray-700 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm shadow-sm"
           />
         </div>
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-3 bg-white border border-gray-200 text-[#141414] rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm">
+          <button className="flex items-center gap-2 cursor-pointer px-4 py-3 bg-white border border-gray-200 text-[#141414] rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm">
             <Filter size={16} /> Filter
           </button>
           <button
-            onClick={() => { setShowUploadModal(true); setUploadError(null); }}
-            className="flex items-center gap-2 bg-[#141414] hover:bg-black text-white px-5 py-3 rounded-xl font-medium transition-colors text-sm shadow-sm"
+            onClick={() => setShowUploadModal(true)}
+            className="flex items-center gap-2 cursor-pointer bg-[#141414] hover:bg-black text-white px-5 py-3 rounded-xl font-medium transition-colors text-sm shadow-sm"
           >
             <Plus size={16} /> New Document
           </button>
         </div>
-      </div>
-
-      {uploadError && (
-        <div className="p-4 bg-red-50 border border-red-100 rounded-xl text-sm font-medium text-red-600">
-          {uploadError}
-        </div>
-      )}
+      </div> 
 
       <div className="bg-white rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.03)] overflow-hidden min-h-[400px]">
         {isLoading ? (
@@ -129,8 +93,8 @@ export const VaultPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {filteredDocs.map((doc: SecureKycDocument) => {
-                const displayId = doc.userId || "Unassigned";
+              {filteredDocs.map((doc: KycDocument) => {
+                const displayId = String(doc.userId || "Unassigned");
                 return (
                   <tr
                     key={doc.id}
@@ -139,23 +103,25 @@ export const VaultPage: React.FC = () => {
                   >
                     <td className="px-6 py-5">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-[#141414] font-bold text-xs group-hover:bg-gray-200 transition-colors">
+                        <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-[#141414] font-medium text-s group-hover:bg-gray-200 transition-colors">
                           {displayId.slice(0, 2).toUpperCase()}
                         </div>
-                        <span className="font-bold text-[#141414]">{displayId}</span>
                       </div>
                     </td>
                     <td className="px-6 py-5 text-sm font-medium text-gray-700">
                       <div className="flex items-center gap-2">
                         <FileText size={16} className="text-gray-400" />
-                        <span className="capitalize">{doc.type.replace(/_/g, ' ')}</span>
+                        <span className="capitalize">
+                          {/* If doc.type is null/undefined, default to 'unknown' */}
+                          {(doc.type ?? 'unknown').replace(/_/g, ' ')}
+                        </span>
                       </div>
                     </td>
                     <td className="px-6 py-5">
-                      <StatusText status={doc.status} />
+                      <StatusText status={doc.status ? doc.status : "pending_review"} />
                     </td>
                     <td className="px-6 py-5 text-sm font-medium text-gray-500">
-                      {new Date(doc.updatedAt).toLocaleDateString()}
+                      {doc.updated_at ? new Date(doc.updated_at).toLocaleDateString() : "N/A"}
                     </td>
                     <td className="px-6 py-5 text-right">
                       <button
@@ -190,15 +156,16 @@ export const VaultPage: React.FC = () => {
             doc={selectedDoc} 
             onClose={() => setSelectedDoc(null)}
             onUpdateStatus={async (status: "pending_review" | "approved" | "rejected") => {
-              await updateStatusMutation.mutateAsync({ docId: selectedDoc.id, status });
+              await updateStatusMutation.mutateAsync({ docId: String(selectedDoc.id), status });
             }}
           />
         )}
         {showUploadModal && (
           <DocumentUploadModal
             onClose={() => setShowUploadModal(false)}
-            onSuccess={async (payload) => {
-              await uploadMutation.mutateAsync(payload);
+            onSuccess={() => {
+              // Now we just tell React Query to fetch the fresh data from the backend
+              queryClient.invalidateQueries({ queryKey: ['vaultDocuments'] });
             }}
           />
         )}

@@ -206,14 +206,43 @@ export interface CreateLeadPayload {
 }
 
 export interface KycDocument {
-  id: string;
-  agencyId: string;
-  userId?: string;
-  type: 'passport' | 'national_id' | 'title_deed' | 'utility_bill' | string;
-  status: 'pending' | 'approved' | 'rejected';
-  filePath: string;
-  fileName: string;
-  updatedAt: string;
+  // Primary Keys & Relationships
+  id: string | number;
+  agency_id: string | number;
+  uploaded_by?: string | number | null;
+  
+  // Polymorphic Relations
+  documentable_type: string;
+  documentable_id: string | number;
+
+  // Document Details
+  document_type: 
+    | 'title_deed' 
+    | 'national_id' 
+    | 'national_id_front' 
+    | 'national_id_back' 
+    | 'passport' 
+    | 'kra_pin' 
+    | 'selfie_verification' 
+    | 'proof_of_address' 
+    | 'contract';
+  s3_private_path: string;
+  notes?: string | null;
+  verification_status: 'pending_review' | 'verified' | 'rejected';
+
+  // OCR & Machine Learning Data
+  extracted_text?: string | null;
+  ml_data?: Record<string, any> | null;
+
+  // Timestamps
+  created_at: string;
+  updated_at: string;
+
+  // ─── Frontend Mapped Properties (Injected by API Interceptors/Queries) ───
+  type?: string; 
+  status?: 'pending_review' | 'verified' | 'rejected';
+  userId?: string | number; // Often mapped from documentable_id or uploaded_by
+  signedUrl?: string; // Appended when generating secure viewing links
 }
 
 // Payload contract specifically matching GenerateUploadUrlRequest.php parameters
