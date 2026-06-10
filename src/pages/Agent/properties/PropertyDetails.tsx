@@ -1,9 +1,9 @@
 import React, { useState, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/src/lib/supabase";
 import {
-  ArrowLeft, MapPin, Bed, Bath, Maximize2, Calendar, CheckCircle, 
-  Phone, Mail, Download, Share2, Loader2, FileText, Send, Sparkles, 
+  ArrowLeft, MapPin, Bed, Bath, Maximize2, CheckCircle, Download, Loader2, Send, 
   X, AlertCircle, Check, Info, Edit2, Save, Image as ImageIcon
 } from "lucide-react";
 import { formatCurrency, cn } from "../../../lib/utils";
@@ -44,7 +44,6 @@ export const PropertyDetail: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
   
-  // We only use this state when the user actively clicks "Edit Details"
   const [editForm, setEditForm] = useState({
     title: "", price: "", location: "", bedrooms: "", baths: "", sqft: "", description: "", status: ""
   });
@@ -85,30 +84,43 @@ export const PropertyDetail: React.FC = () => {
     queryFn: async () => {
       if (!id) return null;
       const response = await propertyApi.getById(id);
-      
+
       let propertyData = response?.data || response;
-      
-      // Failsafe: If the backend accidentally returned an array instead of a single object
+
       if (Array.isArray(propertyData)) {
         propertyData = propertyData[0];
       }
-      
+
       if (!propertyData || Object.keys(propertyData).length === 0) {
         throw new Error("Property payload is empty");
       }
-      
+
       const rawImages = propertyData.images || [];
-      const realImageUrls = Array.isArray(rawImages) 
-        ? rawImages.map((img: any) => typeof img === 'object' ? img.s3_path || img.url : img).filter(Boolean)
+      const realImageUrls = Array.isArray(rawImages)
+        ? rawImages
+            .map((img: any) => typeof img === 'object' ? img.s3_path || img.url : img)
+            .filter(Boolean)
         : [];
 
-      const signedUrls = await Promise.all(
-        realImageUrls.map((url: string) => vaultApi.getSignedUrl(url))
-      );
+      // FIX: Synchronously generate public URLs without network delays
+      const processedUrls = realImageUrls.map((url: string) => {
+        // 1. If it's already a full HTTP URL, use it directly
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+          return url;
+        }
+        
+        // 2. Generate the public URL instantly using the correct bucket
+        const { data } = supabase.storage.from('user-files').getPublicUrl(url);
+        
+        return data.publicUrl;
+      });
+
+      // Filter out any potential empty strings
+      const validUrls = processedUrls.filter(Boolean) as string[];
       
-      const imagesToDisplay = signedUrls.length > 0 
-        ? signedUrls 
-        : ["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=1200"];
+      const imagesToDisplay = validUrls.length > 0
+          ? validUrls
+          : ["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=1200"];
 
       return { property: propertyData, signedImages: imagesToDisplay };
     },
@@ -117,11 +129,9 @@ export const PropertyDetail: React.FC = () => {
   });
 
   const property = cacheData?.property;
-  console.log("Property: ", property);
   const signedImages = cacheData?.signedImages || [];
 
   const handleEditToggle = () => {
-    // Populate the form ONLY when they enter edit mode
     if (!isEditing && property) {
       setEditForm({
         title: property.title || "",
@@ -135,6 +145,10 @@ export const PropertyDetail: React.FC = () => {
       });
     }
     setIsEditing(!isEditing);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
   };
 
   const updateMutation = useMutation({
@@ -154,11 +168,8 @@ export const PropertyDetail: React.FC = () => {
   const uploadImageMutation = useMutation({
     mutationFn: async (file: File) => {
       if (!property) throw new Error("Property context is missing");
-      const s3Url = await vaultApi.executeSecureUpload(file, 'property_image');
-      const existingImages = (property.images ?? []).map((img: any) => 
-        typeof img === 'object' ? (img.s3_path || img.url) : img
-      );
-      return propertyApi.update(property.id, { images: [s3Url, ...existingImages] });
+      const s3Path = await vaultApi.executeSecureUpload(file, 'property_image');
+      return propertyApi.attachImage(property.id, s3Path);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['property', id] });
@@ -235,10 +246,23 @@ export const PropertyDetail: React.FC = () => {
         </button>
         <div className="flex gap-3">
           {isEditing ? (
-            <button onClick={handleSaveChanges} disabled={updateMutation.isPending} className="flex items-center gap-2 px-4 py-2.5 bg-[#141414] text-white rounded-xl text-sm font-medium hover:bg-black transition-colors disabled:opacity-70">
-              {updateMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} 
-              {updateMutation.isPending ? "Saving..." : "Save Changes"}
-            </button>
+            <>
+              {/* FIX: Cancel Button Added */}
+              <button 
+                onClick={handleCancelEdit} 
+                className="px-4 py-2.5 bg-white border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleSaveChanges} 
+                disabled={updateMutation.isPending} 
+                className="flex items-center gap-2 px-4 py-2.5 bg-[#141414] text-white rounded-xl text-sm font-medium hover:bg-black transition-colors disabled:opacity-70"
+              >
+                {updateMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} 
+                {updateMutation.isPending ? "Saving..." : "Save Changes"}
+              </button>
+            </>
           ) : (
             <button onClick={handleEditToggle} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-[#141414] rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">
               <Edit2 size={16} /> Edit Details

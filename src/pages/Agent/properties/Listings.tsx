@@ -43,38 +43,44 @@ export const PropertiesPage: React.FC = () => {
   } = useQuery({
     queryKey: ['properties', page],
     queryFn: async () => {
-      const response = await propertyApi.getAll(page);
-      const items = response.data || [];
+      const response = await propertyApi.getAgencyProperties(page);
+      const items: any[] = response.data || [];
 
       return await Promise.all(
         (Array.isArray(items) ? items : []).map(async (property: any) => {
           let rawUrl: string | null = null;
+
           if (property?.images && Array.isArray(property.images) && property.images.length > 0) {
             const primaryImage = property.images[0];
+            console.log("Primary image entry:", primaryImage);
+
             if (typeof primaryImage === "string") {
               rawUrl = primaryImage;
             } else if (typeof primaryImage === "object" && primaryImage !== null) {
-              rawUrl = primaryImage.s3_path || primaryImage.url || primaryImage.file_path;
+              rawUrl = primaryImage.s3_path || primaryImage.url || primaryImage.file_path || null;
             }
           }
+
+          console.log("Resolved rawUrl for", property.title, ":", rawUrl);
 
           let finalUrl = "";
           if (rawUrl) {
             finalUrl = await vaultApi.getSignedUrl(rawUrl);
+            console.log("Signed URL:", finalUrl);
           } else {
             const searchString = `${property?.title || ""} ${property?.location || ""} ${property?.neighborhood || ""}`.toLowerCase();
-            if (searchString.includes("kitisuru")) finalUrl = KENYAN_PROPERTY_IMAGE_MAP.kitisuru;
+            if (searchString.includes("kitisuru"))       finalUrl = KENYAN_PROPERTY_IMAGE_MAP.kitisuru;
             else if (searchString.includes("muthaiga") || searchString.includes("oribi")) finalUrl = KENYAN_PROPERTY_IMAGE_MAP.muthaiga;
-            else if (searchString.includes("milimani")) finalUrl = KENYAN_PROPERTY_IMAGE_MAP.milimani;
-            else if (searchString.includes("karen")) finalUrl = KENYAN_PROPERTY_IMAGE_MAP.karen;
-            else if (searchString.includes("kilimani")) finalUrl = KENYAN_PROPERTY_IMAGE_MAP.kilimani;
+            else if (searchString.includes("milimani"))  finalUrl = KENYAN_PROPERTY_IMAGE_MAP.milimani;
+            else if (searchString.includes("karen"))     finalUrl = KENYAN_PROPERTY_IMAGE_MAP.karen;
+            else if (searchString.includes("kilimani"))  finalUrl = KENYAN_PROPERTY_IMAGE_MAP.kilimani;
             else finalUrl = KENYAN_PROPERTY_IMAGE_MAP.default;
           }
 
           return { ...property, _signedMainImage: finalUrl };
         })
       );
-    }
+    },
   });
 
   const filteredProperties = useMemo(() => {

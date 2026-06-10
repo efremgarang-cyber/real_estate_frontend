@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
-  Search, 
   MapPin, 
   Bed, 
   Bath, 
@@ -21,7 +20,6 @@ import {
   Play,
 } from "lucide-react";
 import { formatCurrency } from "../lib/utils";
-import { vaultApi } from "../api/vault";
 import { propertyApi } from "../api/properties";
 import { Property } from "../types";
 
@@ -66,36 +64,59 @@ export const LandingPage: React.FC = () => {
   const [touchStart, setTouchStart] = useState<number | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchFeaturedProperties = async () => {
       setLoading(true);
       try {
-        const response = await propertyApi.getAll();
+        const response = await propertyApi.getAllPublic();
         const data = response.data || [];
 
         const activeListings = data.filter((p: Property) => p.status?.toLowerCase() === "active").slice(0, 6);
+        
         const signedListings = await Promise.all(
           activeListings.map(async (property: Property) => {
-            const firstImageEntry = property.images?.[0];
-            const rawUrl = typeof firstImageEntry === 'object' && firstImageEntry !== null
-              ? (firstImageEntry as any).s3_path || (firstImageEntry as any).url 
-              : (firstImageEntry as string);
-              
-            const signedUrl = rawUrl 
-              ? await vaultApi.getSignedUrl(rawUrl) 
-              : "https://images.pexels.com/photos/2587054/pexels-photo-2587054.jpeg?auto=compress&cs=tinysrgb&w=600";
-              
-            return { ...property, _signedMainImage: signedUrl };
+            try {
+              const firstImageEntry = property.images?.[0];
+              const rawUrl = typeof firstImageEntry === 'object' && firstImageEntry !== null
+                ? (firstImageEntry as any).s3_path || (firstImageEntry as any).url 
+                : (firstImageEntry as string);
+                
+              const signedUrl = rawUrl 
+                ? await propertyApi.signImage(rawUrl) 
+                : "https://images.pexels.com/photos/2587054/pexels-photo-2587054.jpeg?auto=compress&cs=tinysrgb&w=600";
+                
+              return { ...property, _signedMainImage: signedUrl };
+            } catch (innerError) {
+              // Return structural fallback if S3 generation pipeline trips up
+              return { 
+                ...property, 
+                _signedMainImage: "https://images.pexels.com/photos/2587054/pexels-photo-2587054.jpeg?auto=compress&cs=tinysrgb&w=600" 
+              };
+            }
           })
         );
 
-        setProperties(signedListings);
+        if (isMounted) {
+          setProperties(signedListings);
+        }
       } catch (error) {
-        console.error("Failed to fetch public listings:", error);
+        console.error("Failed to fetch public listings safely:", error);
+        if (isMounted) {
+          setProperties([]); // Gracefully transition to fallback empty view instead of re-triggering loader
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
+
     fetchFeaturedProperties();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Auto-slide functionality
@@ -181,11 +202,9 @@ export const LandingPage: React.FC = () => {
                 backgroundPosition: "center 30%",
               }}
             />
-            {/* Subtle zoom animation on active slide */}
             {index === currentSlide && (
               <div className="absolute inset-0 animate-slow-zoom" style={{ backgroundImage: `url('${image.url}')`, backgroundSize: "cover", backgroundPosition: "center 30%" }} />
             )}
-            {/* Caption overlay */}
             <div className="absolute bottom-32 left-1/2 -translate-x-1/2 text-center z-20 pointer-events-none">
               <p className="text-[#D4AF37] text-xs font-bold uppercase tracking-[0.3em] mb-2">
                 {image.subtitle}
@@ -197,11 +216,9 @@ export const LandingPage: React.FC = () => {
           </div>
         ))}
         
-        {/* Sophisticated Overlay with multiple gradients */}
         <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-black/40 to-black/70 z-10" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)] z-10" />
 
-        {/* Slider Navigation Dots */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 flex gap-3">
           {heroImages.map((_, index) => (
             <button
@@ -216,7 +233,6 @@ export const LandingPage: React.FC = () => {
           ))}
         </div>
 
-        {/* Slider Controls */}
         <button
           onClick={goToPrevSlide}
           className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 z-30 bg-black/50 hover:bg-black/70 text-white p-2 md:p-3 rounded-full transition-all duration-300 hover:scale-110 backdrop-blur-sm"
@@ -230,7 +246,6 @@ export const LandingPage: React.FC = () => {
           <ChevronRight size={20} />
         </button>
 
-        {/* Auto-play Toggle */}
         <button
           onClick={toggleAutoPlay}
           className="absolute bottom-24 right-4 md:right-8 z-30 bg-black/50 hover:bg-black/70 text-white p-2 md:p-3 rounded-full transition-all duration-300 backdrop-blur-sm"
@@ -238,7 +253,6 @@ export const LandingPage: React.FC = () => {
           {isAutoPlaying ? <Pause size={16} /> : <Play size={16} />}
         </button>
 
-        {/* ── Navbar (Premium Glass Effect) ── */}
         <header className="relative z-30 px-6 md:px-12 py-6 flex items-center justify-between">
           <div
             className="flex items-center gap-3 cursor-pointer group"
@@ -258,24 +272,15 @@ export const LandingPage: React.FC = () => {
           </div>
 
           <nav className="hidden md:flex items-center gap-10 text-white text-sm font-medium">
-            <button
-              onClick={() => navigate("/")}
-              className="relative group py-2"
-            >
+            <button onClick={() => navigate("/")} className="relative group py-2">
               <span className="hover:text-[#D4AF37] transition-colors duration-300">Buy</span>
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#D4AF37] transition-all duration-300 group-hover:w-full"></span>
             </button>
-            <button
-              onClick={() => navigate("/")}
-              className="relative group py-2"
-            >
+            <button onClick={() => navigate("/")} className="relative group py-2">
               <span className="hover:text-[#D4AF37] transition-colors duration-300">Rent</span>
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#D4AF37] transition-all duration-300 group-hover:w-full"></span>
             </button>
-            <button
-              onClick={() => navigate("/")}
-              className="relative group py-2"
-            >
+            <button onClick={() => navigate("/")} className="relative group py-2">
               <span className="hover:text-[#D4AF37] transition-colors duration-300">Developments</span>
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#D4AF37] transition-all duration-300 group-hover:w-full"></span>
             </button>
@@ -288,7 +293,6 @@ export const LandingPage: React.FC = () => {
           </nav>
         </header>
 
-        {/* ── Hero copy + search ── */}
         <div className="relative z-20 flex-1 flex flex-col items-center justify-center px-6 md:px-12 text-center">
           <div className="animate-fade-up">
             <p className="text-[#D4AF37] text-xs font-bold uppercase tracking-[0.3em] mb-6">
@@ -304,7 +308,6 @@ export const LandingPage: React.FC = () => {
             </p>
           </div>
 
-          {/* Premium Search Bar with Glassmorphism */}
           <form
             onSubmit={handleSearchSubmit}
             className="bg-white/95 backdrop-blur-sm flex flex-col sm:flex-row w-full max-w-3xl mx-auto shadow-2xl rounded-lg overflow-hidden"
@@ -328,7 +331,6 @@ export const LandingPage: React.FC = () => {
           </form>
         </div>
 
-        {/* Scroll indicator */}
         <div className="relative z-20 flex justify-center pb-10 animate-bounce">
           <div className="w-px h-12 bg-gradient-to-b from-[#D4AF37]/0 to-[#D4AF37]/60" />
         </div>
@@ -347,7 +349,7 @@ export const LandingPage: React.FC = () => {
             <div className="w-20 h-0.5 bg-[#D4AF37] mt-5" />
           </div>
           <button
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/client/properties")}
             className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-[#141414] hover:text-[#D4AF37] transition-all duration-300 group"
           >
             View All <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
@@ -379,7 +381,7 @@ export const LandingPage: React.FC = () => {
               return (
                 <div
                   key={property.id}
-                  onClick={() => navigate(`//${property.id}`)}
+                  onClick={() => navigate(`/properties/${property.id}`)} // Fixed dangerous double slash destination mapping block
                   className="group cursor-pointer flex flex-col bg-white border border-gray-100 rounded-2xl overflow-hidden hover:border-[#D4AF37] hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 animate-slide-up"
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
@@ -633,7 +635,7 @@ export const LandingPage: React.FC = () => {
         </div>
       </footer>
 
-      {/* Add custom animations */}
+      {/* Custom Keyframes */}
       <style>{`
         @keyframes slow-zoom {
           0% { transform: scale(1); }

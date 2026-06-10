@@ -36,7 +36,7 @@ export const VaultPage: React.FC = () => {
   // 2. Status Update Mutation
   const updateStatusMutation = useMutation({
     mutationFn: async ({ docId, status }: { docId: string, status: string }) => {
-      return await api.patch(`/v1/vault/documents/${docId}/status`, { status });
+      return await api.patch(`/vault/documents/${docId}/status`, { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vaultDocuments'] });
@@ -155,7 +155,7 @@ export const VaultPage: React.FC = () => {
           <DocumentViewer
             doc={selectedDoc} 
             onClose={() => setSelectedDoc(null)}
-            onUpdateStatus={async (status: "pending_review" | "approved" | "rejected") => {
+            onUpdateStatus={async (status: "pending_review" | "verified" | "rejected") => {
               await updateStatusMutation.mutateAsync({ docId: String(selectedDoc.id), status });
             }}
           />

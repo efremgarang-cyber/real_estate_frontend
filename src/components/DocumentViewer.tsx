@@ -6,16 +6,64 @@ import {
   XCircle, 
   Loader2, 
   FileText, 
-  ScanText
+  ScanText,
+  AlertCircle,
+  Check,
+  Info
 } from "lucide-react";
 import { motion } from "motion/react";
 import { KycDocument } from "../types";
 import { cn } from "../lib/utils";
 
+interface ToastNotification { 
+  id: string; 
+  type: 'success' | 'error' | 'info' | 'warning'; 
+  title: string; 
+  message: string; 
+}
+
+const Toast: React.FC<{ notification: ToastNotification; onClose: () => void }> = ({ notification, onClose }) => {
+  React.useEffect(() => { 
+    const timer = setTimeout(() => { onClose(); }, 5000); 
+    return () => clearTimeout(timer); 
+  }, [onClose]);
+
+  const icons = { 
+    success: <Check className="w-5 h-5 text-green-600" />, 
+    error: <AlertCircle className="w-5 h-5 text-red-600" />, 
+    warning: <AlertCircle className="w-5 h-5 text-orange-600" />, 
+    info: <Info className="w-5 h-5 text-blue-600" /> 
+  };
+  
+  const colors = { 
+    success: "bg-green-50 border-green-200", 
+    error: "bg-red-50 border-red-200", 
+    warning: "bg-orange-50 border-orange-200", 
+    info: "bg-blue-50 border-blue-200" 
+  };
+
+  return (
+    <div className={`w-96 rounded-xl border shadow-lg ${colors[notification.type]} animate-in slide-in-from-top-2 duration-300`}>
+      <div className="p-4">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0">{icons[notification.type]}</div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-900">{notification.title}</p>
+            <p className="text-sm text-gray-600 mt-0.5">{notification.message}</p>
+          </div>
+          <button title="Close notification" onClick={onClose} className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 interface DocumentViewerProps {
   doc: KycDocument; 
   onClose: () => void;
-  onUpdateStatus: (status: "pending_review" | "approved" | "rejected") => Promise<void>;
+  onUpdateStatus: (status: "pending_review" | "verified" | "rejected") => Promise<void>;
 }
 
 export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose, onUpdateStatus }) => {
@@ -23,10 +71,20 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose, on
   const [secureUrl, setSecureUrl] = useState<string | null>(null);
   const [isDecrypting, setIsDecrypting] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<ToastNotification[]>([]);
 
   // Safe fallbacks to prevent undefined crashes
   const docStatus = doc?.status || doc?.verification_status || 'pending_review';
   const docType = doc?.document_type || doc?.type || 'uncategorized';
+
+  const addNotification = (type: ToastNotification['type'], title: string, message: string) => {
+    const notifId = Math.random().toString(36).substring(2, 9);
+    setNotifications(prev => [...prev, { id: notifId, type, title, message }]);
+  };
+
+  const removeNotification = (notifId: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== notifId));
+  };
 
   useEffect(() => {
     const fetchSecureUrl = async () => {
@@ -34,6 +92,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose, on
 
       if (!filePath) {
         setError("File path is missing from the database.");
+        addNotification('error', 'Missing File', 'No file path found in the database record.');
         setIsDecrypting(false);
         return;
       }
@@ -51,9 +110,12 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose, on
         if (!data?.signedUrl) throw new Error("Failed to generate secure link.");
 
         setSecureUrl(data.signedUrl);
+        addNotification('success', 'Decryption Successful', 'Secure link generated for viewing.');
       } catch (err: any) {
-        console.error("Decryption failed:", err);
-        setError(err.message || "Failed to decrypt the file from the vault.");
+        console.error("Decryption failed:", err.response.data);
+        const errorMsg = err.response.data.message || "Failed to decrypt the file from the vault.";
+        setError(errorMsg);
+        addNotification('error', 'Decryption Failed', errorMsg);
       } finally {
         setIsDecrypting(false);
       }
@@ -64,13 +126,19 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose, on
     }
   }, [doc]);
 
-  const handleStatusUpdate = async (status: "approved" | "rejected") => {
+  const handleStatusUpdate = async (status: "verified" | "rejected") => {
     setIsProcessing(true);
     try {
       await onUpdateStatus(status);
-      // Parent modal handles closing on success
-    } catch (error) {
-      console.error("Failed to update status");
+      addNotification('success', 'Status Updated', `Document successfully marked as ${status}.`);
+      // Optional: Add a slight delay before closing if you want the user to see the success toast
+      setTimeout(() => {
+         // Parent modal usually handles closing on success if it invalidates the query
+      }, 1000);
+    } catch (error: any) {
+      console.error("Failed to update status", error.response.data);
+      addNotification('error', 'Update Failed', error.response.data.message || 'Could not update the document status.');
+    } finally {
       setIsProcessing(false);
     }
   };
@@ -83,7 +151,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose, on
     try { return JSON.parse(str); } catch (e) { return null; }
   }
 
-  // Helper to render OCR ML Data safely
+  // Helper to render OCR ML Data safely and extract KRA specifics
   const renderOcrData = () => {
     function safeJsonParse(val: any): Record<string, any> | null {
       if (!val) return null;
@@ -91,65 +159,156 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose, on
       try { return JSON.parse(val); } catch { return null; }
     }
 
-    const rawText   = doc?.extracted_text || "";
-    const mlData    = safeJsonParse(doc?.ml_data);
+    const rawText = doc?.extracted_text || "";
+    const mlData = safeJsonParse(doc?.ml_data);
 
-    // Has structured ml_data from analyzeKycData()
-    if (mlData && Object.keys(mlData).length > 0) {
-      return (
-        <div className="space-y-1">
-          {rawText && (
-            <div className="p-3 bg-gray-50 border border-gray-100 rounded-xl mb-3 max-h-40 overflow-y-auto">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">
-                Raw Extracted Text
-              </p>
-              <p className="text-xs font-mono text-gray-600 whitespace-pre-wrap leading-relaxed">
-                {rawText}
-              </p>
-            </div>
-          )}
-          {Object.entries(mlData).map(([key, value]) => (
-            <div
-              key={key}
-              className="flex justify-between items-start py-2 border-b border-gray-50 last:border-0"
-            >
-              <span className="text-xs font-medium text-gray-500 capitalize mt-0.5">
-                {key.replace(/_/g, ' ')}
-              </span>
-              <span className="text-sm font-bold text-[#141414] text-right max-w-[60%] break-words">
-                {typeof value === 'boolean'
-                  ? (value ? 'Yes' : 'No')
-                  : String(value ?? 'N/A')}
-              </span>
-            </div>
-          ))}
-        </div>
-      );
-    }
+    // Fallback parser: Attempts to pull structured data from raw KRA certificate OCR
+    const parseKraData = (text: string) => {
+      if (!text) return null;
+      
+      const extract = (regex: RegExp) => text.match(regex)?.[1]?.trim() || "N/A";
+      
+      return {
+        pin: text.match(/[A-Z]\d{9}[A-Z]/)?.[0] || "N/A",
+        email: text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)?.[0] || "N/A",
+        name: extract(/Taxpayer Name\s*\n([^\n]+)/i) || extract(/Taxpayer Information\s*\n([^\n]+)/i),
+        building: extract(/Building\s*:\s*([^\n]+)/i),
+        street: extract(/Street\/Road\s*:\s*([^\n]+)/i),
+        city: extract(/City\/Town\s*:\s*([^\n]+)/i),
+        county: extract(/County\s*:\s*([^\n]+)/i),
+        station: extract(/Station\s*:\s*([^\n]+)/i)
+      };
+    };
 
-    // Has raw text only, no structured analysis
-    if (rawText) {
+    const parsedData = parseKraData(rawText);
+    console.log(parsedData);
+    const hasParsedData = parsedData && (parsedData.pin !== "N/A" || parsedData.name !== "N/A");
+    const hasMlData = mlData && Object.keys(mlData).length > 0;
+
+    if (!rawText && !hasMlData) {
       return (
-        <div className="p-4 bg-gray-50 border border-gray-100 rounded-xl max-h-64 overflow-y-auto">
-          <p className="text-xs font-mono text-gray-600 whitespace-pre-wrap leading-relaxed">
-            {rawText}
+        <div className="p-4 bg-gray-50 border border-gray-100 rounded-xl text-center">
+          <p className="text-xs font-medium text-gray-400">
+            No OCR or Verification data available for this document.
           </p>
         </div>
       );
     }
 
     return (
-      <div className="p-4 bg-gray-50 border border-gray-100 rounded-xl text-center">
-        <p className="text-xs font-medium text-gray-400">
-          No OCR data available for this document.
-        </p>
+      <div className="space-y-6">
+        
+        {/* 1. Official ML Verification Data (Restored) */}
+        {hasMlData && (
+          <div className="space-y-3">
+            <h5 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-200 pb-2 mb-2">
+              System Verification Data
+            </h5>
+            <div className="p-4 bg-gray-50 border border-gray-100 rounded-xl space-y-1">
+              {Object.entries(mlData).map(([key, value]) => (
+                <div
+                  key={key}
+                  className="flex justify-between items-start py-2 border-b border-gray-200/60 last:border-0"
+                >
+                  <span className="text-xs font-medium text-gray-500 capitalize mt-0.5">
+                    {key.replace(/_/g, ' ')}
+                  </span>
+                  <span className="text-sm font-bold text-[#141414] text-right max-w-[60%] break-words">
+                    {typeof value === 'boolean'
+                      ? (value ? 'Yes' : 'No')
+                      : String(value ?? 'N/A')}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 2. Extracted KRA Structured Data */}
+        {hasParsedData && (
+          <div className="space-y-4">
+            <div className="p-4 bg-gray-50 border border-gray-100 rounded-xl space-y-3">
+              <h5 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-200 pb-2 mb-2">
+                Taxpayer Identity
+              </h5>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Full Name</span>
+                  <span className="text-sm font-bold text-[#141414]">{parsedData.name}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">KRA PIN</span>
+                  <span className="text-sm font-bold text-[#141414]">{parsedData.pin}</span>
+                </div>
+                <div className="col-span-2">
+                  <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Email Address</span>
+                  <span className="text-sm font-bold text-[#141414]">{parsedData.email}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 bg-gray-50 border border-gray-100 rounded-xl space-y-3">
+              <h5 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-200 pb-2 mb-2">
+                Registered Address
+              </h5>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Building / Plaza</span>
+                  <span className="text-sm font-bold text-[#141414]">{parsedData.building}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Street / Road</span>
+                  <span className="text-sm font-bold text-[#141414]">{parsedData.street}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">City / Town</span>
+                  <span className="text-sm font-bold text-[#141414]">{parsedData.city}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">County</span>
+                  <span className="text-sm font-bold text-[#141414]">{parsedData.county}</span>
+                </div>
+                <div className="col-span-2 border-t border-gray-200 pt-2 mt-2">
+                  <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Tax Station</span>
+                  <span className="text-sm font-bold text-[#141414]">{parsedData.station}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 3. Collapsible Raw Text Fallback */}
+        {rawText && (
+          <details className="group">
+            <summary className="text-[10px] font-bold text-gray-500 uppercase tracking-widest cursor-pointer hover:text-[#141414] transition-colors flex items-center gap-2">
+              <span className="w-4 h-4 rounded bg-gray-100 flex items-center justify-center group-open:rotate-90 transition-transform">
+                ›
+              </span>
+              View Raw OCR Transcript
+            </summary>
+            <div className="mt-3 p-4 bg-gray-50 border border-gray-100 rounded-xl max-h-40 overflow-y-auto custom-scrollbar">
+              <p className="text-xs font-mono text-gray-600 whitespace-pre-wrap leading-relaxed">
+                {rawText}
+              </p>
+            </div>
+          </details>
+        )}
       </div>
     );
   };
 
-
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+      
+      {/* Toast Notification Container */}
+      <div className="fixed top-4 right-4 z-[150] flex flex-col gap-2 pointer-events-none">
+        {notifications.map(n => (
+          <div key={n.id} className="pointer-events-auto">
+            <Toast notification={n} onClose={() => removeNotification(n.id)} />
+          </div>
+        ))}
+      </div>
+
       {/* Backdrop */}
       <motion.div 
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -283,7 +442,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({ doc, onClose, on
                   Reject
                 </button>
                 <button 
-                  onClick={() => handleStatusUpdate('approved')}
+                  onClick={() => handleStatusUpdate('verified')}
                   disabled={isProcessing || isDecrypting}
                   className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-[#141414] text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-black transition-colors shadow-sm disabled:opacity-50"
                 >
