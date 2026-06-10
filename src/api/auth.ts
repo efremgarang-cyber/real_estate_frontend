@@ -22,40 +22,46 @@ export interface WorkspaceResponse {
   user?: User;
 }
 
-
+export interface UpdateProfilePayload {
+  name: string;
+  email: string;
+  phone?: string;
+  job_title?: string;
+  bio?: string;
+}
 
 export const authApi = {
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-    // REMOVED 'v1/'
     const response = await api.post<AuthResponse>('/login', credentials); 
     return response.data;
   },
 
   register: async (payload: RegisterPayload): Promise<AuthResponse> => {
-    // REMOVED 'v1/'
     const response = await api.post<AuthResponse>('/register', payload);
     return response.data;
   },
 
   logout: async (): Promise<SuccessMessage> => {
-    // REMOVED '/v1/'
     const response = await api.post<SuccessMessage>('/logout');
     return response.data;
   },
 
   getCurrentUser: async (): Promise<{ user: User; profile: UserProfile | null }> => {
-    // REMOVED '/v1/'
     const response = await api.get<{ user: User; profile: UserProfile | null }>('/me');
     return response.data;
   },
 
-  // Creates a new agency — for users who land in limbo and choose "Create New"
+  // NEW: Sends profile updates back to the backend
+  updateProfile: async (payload: UpdateProfilePayload): Promise<{ success: boolean; user: User; profile: UserProfile }> => {
+    const response = await api.put<{ success: boolean; user: User; profile: UserProfile }>('/me', payload);
+    return response.data;
+  },
+
   initializeWorkspace: async (payload: InitializeWorkspacePayload): Promise<WorkspaceResponse> => {
     const response = await api.post<WorkspaceResponse>('/v1/vault/initialize-workspace', payload);
     return response.data;
   },
 
-  // Joins an existing agency via join code — for limbo users who choose "Join Existing"
   joinAgency: async (joinCode: string): Promise<WorkspaceResponse> => {
     const response = await api.post<WorkspaceResponse>('/v1/agency/join', { join_code: joinCode });
     return response.data;
