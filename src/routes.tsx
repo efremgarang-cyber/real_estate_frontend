@@ -25,7 +25,7 @@ import { Settings } from "./pages/Settings";
 
 // ✨ Your Feature Components (Added Back)
 import { EscrowPage } from "./pages/EscrowPage";
-import { SubscriptionPage } from "./pages/SubscriptionPage";
+import SubscriptionPage from "./pages/SubscriptionPage";
 
 // Admin Module Components
 import { AdminDashboardOverview } from "./pages/Admin/AdminDashboardOverview";

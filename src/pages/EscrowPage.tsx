@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CreditCard, AlertCircle, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { EscrowProgressTracker } from '../../components/Escrow/EscrowProgressTracker';
-import { escrowApi } from '../../api/escrow';
-import { EscrowWithProgress } from '../../types';
-import { formatCurrency } from '../../lib/utils';
+import { EscrowProgressTracker } from '../components/Escrow/EscrowProgressTracker';
+import { escrowApi } from '../api/escrow';
+import { EscrowWithProgress } from '../types';
+import { formatCurrency } from '../lib/utils';
 
 export const EscrowPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();

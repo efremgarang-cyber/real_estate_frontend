@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { 
   X, 
   UploadCloud, 
@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../lib/utils";
-// Make sure these paths match your project structure!
 import { supabase } from "../lib/supabase"; 
 import { api } from "../lib/api";
 
@@ -182,9 +181,10 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({ onClos
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-1">Secure Vault Ingestion</p>
           </div>
           <button 
+            type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-[#141414] transition-colors disabled:opacity-50"
+            className="cursor-pointer w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-[#141414] transition-colors disabled:opacity-50"
           >
             <X size={20} />
           </button>
@@ -200,8 +200,6 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({ onClos
               </div>
             )}
 
-            
-        
             {/* SMART COMPONENT: Client Dropdown */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
@@ -253,7 +251,7 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({ onClos
                   value={docType}
                   onChange={(e) => setDocType(e.target.value)}
                   disabled={isSubmitting}
-                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm font-medium text-[#141414]"
+                  className="cursor-pointer w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm font-medium text-[#141414]"
                 >
                   {KYC_DOCUMENT_TYPES.map((type) => (
                     <option key={type.value} value={type.value}>
@@ -262,14 +260,6 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({ onClos
                   ))}
                 </select>
               </div>
-              <p className="text-xs text-gray-500 text-center">Uploading... {uploadProgress}%</p>
-            </div>
-          )}
-
-          {error && (
-            <div className="flex items-center gap-2 p-3 bg-red-50 rounded-xl text-red-600 text-sm">
-              <AlertCircle size={16} />
-              {error}
             </div>
 
             <div>
@@ -308,7 +298,7 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({ onClos
                         type="button"
                         disabled={isSubmitting}
                         onClick={() => cameraInputRef.current?.click()}
-                        className="flex items-center gap-2 cursor-pointer px-5 py-2.5 bg-[#141414] text-white rounded-xl text-xs font-bold hover:bg-black transition-colors shadow-sm"
+                        className="cursor-pointer flex items-center gap-2 px-5 py-2.5 bg-[#141414] text-white rounded-xl text-xs font-bold hover:bg-black transition-colors shadow-sm"
                       >
                         <Camera size={14} /> Open Camera
                       </button>
@@ -364,7 +354,7 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({ onClos
                         type="button" 
                         disabled={isSubmitting}
                         onClick={clearFile}
-                        className="text-xs font-bold cursor-pointer text-gray-400 hover:text-red-500 transition-colors shrink-0 px-3 py-2 rounded-lg hover:bg-red-50 disabled:opacity-50"
+                        className="cursor-pointer text-xs font-bold text-gray-400 hover:text-red-500 transition-colors shrink-0 px-3 py-2 rounded-lg hover:bg-red-50 disabled:opacity-50"
                       >
                         Remove
                       </button>
