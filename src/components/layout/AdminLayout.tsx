@@ -7,7 +7,7 @@ import { useTheme } from "../../lib/ThemeContext";
 
 import { Sidebar } from "./Sidebar";
 import { MobileMenu } from "../layout/MobileMenu";
-import { ProfileModal } from "../layout/ProfileModal";
+import { UserProfileModal } from "../UserProfileModal";
 import { NotificationDropdown } from "./NotificationDropdown";
 import { SecurityStatus } from "./SecurityStatus";
 
@@ -21,7 +21,7 @@ const adminNavItems = [
 ];
 
 export const AdminLayout: React.FC = () => {
-  const { profile, user } = useAuth();
+  const { profile, user, logout } = useAuth();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -36,6 +36,7 @@ export const AdminLayout: React.FC = () => {
     <div className="flex h-screen bg-[#E4E3E0] dark:bg-[#0A0A0A] font-sans overflow-hidden transition-colors duration-300">
       <Sidebar 
         navItems={adminNavItems} 
+        onOpenProfile={() => setShowProfileModal(true)} 
         userInitials={userInitials} 
       />
 
@@ -110,12 +111,13 @@ export const AdminLayout: React.FC = () => {
       </AnimatePresence>
 
       <AnimatePresence>
-        {showProfileModal && (
-          <ProfileModal 
-            onClose={() => setShowProfileModal(false)}
-            userInitials={userInitials}
-          />
-        )}
+        <UserProfileModal 
+          isOpen={showProfileModal}
+          onClose={() => setShowProfileModal(false)}
+          onLogout={logout}
+          user={user}
+          profile={profile}
+        />
       </AnimatePresence>
     </div>
   );

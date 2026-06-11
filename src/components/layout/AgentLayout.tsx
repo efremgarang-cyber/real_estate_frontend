@@ -7,9 +7,7 @@ import { motion, AnimatePresence } from "motion/react";
 // Layout Sub-components
 import { Sidebar } from "../../components/layout/Sidebar";
 import { MobileMenu } from "./MobileMenu";
-import { ProfileModal } from "./ProfileModal";
-
-// Specific routes handled by the Agent Portal
+import { UserProfileModal } from "../UserProfileModal";
 const agentNavItems = [
   { name: "Overview", href: "/agent/dashboard", icon: BarChart3 },
   { name: "Properties", href: "/agent/properties", icon: Home },
@@ -19,12 +17,12 @@ const agentNavItems = [
 ];
 
 export const AgentLayout: React.FC = () => {
-  const { profile, user } = useAuth();
+  // FIX 2: Destructure logout method from your AuthContext alongside profile and user
+  const { profile, user, logout } = useAuth();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
 
-  // Use startsWith to handle sub-routes correctly
   const currentPageName = agentNavItems.find(i => location.pathname.startsWith(i.href))?.name || "Vantage OS";
   const userInitials = profile?.name?.[0] || user?.email?.[0] || "U";
 
@@ -47,13 +45,12 @@ export const AgentLayout: React.FC = () => {
           <button title="button"
             type="button"
             onClick={() => setMobileMenuOpen(true)}
-            className="p-2 text-gray-500 hover:bg-gray-50 rounded-xl"
+            className="cursor-pointer p-2 text-gray-500 hover:bg-gray-50 rounded-xl"
           >
             <Menu size={24} />
           </button>
         </header>
 
-        {/* Dynamic Page Header with Role-Based Workspace Context */}
         <div className="px-6 md:px-10 py-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 z-10">
           <div>
             <h2 className="font-display text-2xl font-bold text-[#141414]">
@@ -93,11 +90,15 @@ export const AgentLayout: React.FC = () => {
         )}
       </AnimatePresence>
 
+      {/* FIX 3: Inject all required props mapped in UserProfileModalProps interface */}
       <AnimatePresence>
         {showProfileModal && (
-          <ProfileModal 
+          <UserProfileModal 
+            isOpen={showProfileModal}
             onClose={() => setShowProfileModal(false)}
-            userInitials={userInitials}
+            onLogout={logout}
+            user={user}
+            profile={profile}
           />
         )}
       </AnimatePresence>
