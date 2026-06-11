@@ -1,10 +1,11 @@
 import React from "react";
-import { X, Building2, Mail, Shield, Calendar, FileCheck2, ShieldAlert, History } from "lucide-react";
+import { X, Building2, Mail, Shield, Calendar, FileCheck2, ShieldAlert, History, LogOut } from "lucide-react";
 import { motion } from "motion/react";
 
 interface UserProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onLogout: () => void; // Added logout handler trigger
   user: any; // Raw user state from AuthContext
   profile: any; // Context profile array from your me() endpoint
   stats?: {
@@ -17,9 +18,9 @@ interface UserProfileModalProps {
 export const UserProfileModal: React.FC<UserProfileModalProps> = ({ 
   isOpen, 
   onClose, 
+  onLogout,
   user, 
   profile,
-  // Retaining fallback statistics metrics layout until you wire up an aggregation query
   stats = { totalUploaded: 0, verifiedDocs: 0, rejectedDocs: 0 } 
 }) => {
   if (!isOpen) return null;
@@ -28,6 +29,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const displayName = profile?.name || user?.name || "User";
   const displayEmail = profile?.email || user?.email || "N/A";
   const displayRole = profile?.role || (user?.role ? String(user.role).toUpperCase() : "Member");
+  
+  // Resolve profile avatar from the static asset disk
+  const avatarUrl = user?.avatar_path ? `http://localhost:8000/storage/${user.avatar_path}` : null;
 
   const userInitials = displayName
     .split(" ")
@@ -57,8 +61,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
         <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-900 shrink-0">
           <h3 className="font-display text-lg font-bold text-[#141414] dark:text-white">Account Profile</h3>
           <button 
+            type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-gray-50 dark:bg-[#141414] flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#1A1A1A] hover:text-[#141414] dark:hover:text-white transition-colors"
+            className="cursor-pointer w-8 h-8 rounded-full bg-gray-50 dark:bg-[#141414] flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#1A1A1A] hover:text-[#141414] dark:hover:text-white transition-colors"
           >
             <X size={18} />
           </button>
@@ -69,8 +74,12 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           
           {/* Avatar & Main Meta */}
           <div className="flex items-center gap-4 pb-6 border-b border-gray-50 dark:border-gray-900">
-            <div className="w-16 h-16 rounded-full bg-[#141414] dark:bg-white text-white dark:text-[#141414] flex items-center justify-center font-bold text-xl shrink-0 shadow-sm">
-              <span>{userInitials.toUpperCase()}</span>
+            <div className="w-16 h-16 rounded-full bg-[#141414] dark:bg-white text-white dark:text-[#141414] flex items-center justify-center font-bold text-xl shrink-0 shadow-sm overflow-hidden">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="User Avatar" className="w-full h-full object-cover" />
+              ) : (
+                <span>{userInitials.toUpperCase()}</span>
+              )}
             </div>
             <div className="min-w-0">
               <h4 className="text-lg font-bold text-[#141414] dark:text-white truncate">
@@ -150,7 +159,18 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               </div>
             </div>
           </div>
+        </div>
 
+        {/* Action Bottom Tray - Added Logout Operation Section */}
+        <div className="p-4 bg-gray-50 dark:bg-[#141414] border-t border-gray-100 dark:border-gray-900 shrink-0">
+          <button 
+            type="button"
+            onClick={onLogout}
+            className="cursor-pointer w-full flex items-center justify-center border-1 border-gray-400 gap-2 px-4 py-3 text-black hover:bg-gray-400 font-bold text-sm rounded-xl transition-colors shadow-sm"
+          >
+            <LogOut size={16} />
+            Log Out 
+          </button>
         </div>
       </motion.div>
     </div>

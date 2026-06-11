@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef } from "react";
 import { 
   User as UserIcon, Lock, Save, Loader2, Users, 
   ShieldCheck, Bell, CreditCard, Palette, 
-  Trash2, Plus, AlertCircle, Moon, Sun, Monitor, Shield
+  Trash2, Plus, AlertCircle, Moon, Sun, Monitor, Shield, CheckCircle2
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { api } from "../lib/api";
-import { useAuth } from "../lib/AuthContext"; // Adjust path if needed
+import { useAuth } from "../lib/AuthContext";
 
 // ── 1. THE WRAPPER (This is what the Router loads) ──
 export const Settings = () => {
@@ -24,7 +24,6 @@ export const Settings = () => {
     );
   }
 
-  // Pass the resolved identity down to the UI
   return (
     <SettingsUI 
       user={user} 
@@ -64,15 +63,14 @@ const SettingsUI: React.FC<SettingsProps> = ({ user, profile, onProfileUpdate })
   const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
     return (localStorage.getItem("theme") as "light" | "dark" | "system") || "light";
   });
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.avatar_path ? `http://localhost:8000/storage/${user.avatar_path}` : null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  
+  // Status Notification Banner State
+  const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   const resolveField = (field: "name" | "email"): string => {
-    return profile?.[field] || 
-           profile?.data?.[field] ||
-           user?.[field] || 
-           user?.data?.[field] || 
-           user?.data?.user?.[field] || 
-           "";
+    return profile?.[field] || profile?.data?.[field] || user?.[field] || user?.data?.[field] || "";
   };
 
   const [formData, setFormData] = useState({
@@ -104,19 +102,43 @@ const SettingsUI: React.FC<SettingsProps> = ({ user, profile, onProfileUpdate })
     }
   }, [theme]);
 
+  // Clear top-level notifications whenever tab selection shifts
+  useEffect(() => {
+    setNotification(null);
+  }, [activeTab]);
+
   const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      await api.put("/me", {
-        name: formData.name,
-        email: formData.email
-      });
-    } catch (error) {
-      console.error("Profile configuration update rejected:", error);
-    } finally {
-      setIsSaving(false);
+  setIsSaving(true);
+  setNotification(null);
+  try {
+    const dataPayload = new FormData();
+    dataPayload.append("name", formData.name);
+    dataPayload.append("email", formData.email);
+    
+    if (avatarFile) {
+      dataPayload.append("avatar", avatarFile);
     }
-  };
+
+    const response = await api.post("/me", dataPayload, {
+      headers: { "Content-Type": "multipart/form-data" }
+    });
+
+    // Persist the returned avatar path so it survives refresh
+    const updatedUser = response.data?.user;
+    if (updatedUser?.avatar_path) {
+      setAvatarUrl(`http://localhost:8000/storage/${updatedUser.avatar_path}`);
+      setAvatarFile(null);
+    }
+
+    setNotification({ type: "success", message: "Profile updated successfully." });
+    if (onProfileUpdate) onProfileUpdate();
+  } catch (error: any) {
+    const errorMsg = error?.response?.data?.message || "Failed to save profile.";
+    setNotification({ type: "error", message: errorMsg });
+  } finally {
+    setIsSaving(false);
+  }
+};
 
   return (
     <div className="mx-auto p-6 font-sans pb-24 text-[#141414] dark:text-white">
@@ -127,7 +149,7 @@ const SettingsUI: React.FC<SettingsProps> = ({ user, profile, onProfileUpdate })
             key={item.id}
             onClick={() => setActiveTab(item.id)}
             className={cn(
-              "flex items-center gap-2 px-4 py-3 border-b-2 font-bold text-sm whitespace-nowrap transition-colors",
+              "cursor-pointer flex items-center gap-2 px-4 py-3 border-b-2 font-bold text-sm whitespace-nowrap transition-colors",
               activeTab === item.id 
                 ? "border-[#141414] dark:border-white text-[#141414] dark:text-white" 
                 : "border-transparent text-gray-400 hover:text-[#141414] dark:hover:text-white hover:border-gray-300 dark:hover:border-gray-700"
@@ -149,9 +171,28 @@ const SettingsUI: React.FC<SettingsProps> = ({ user, profile, onProfileUpdate })
           </p>
         </div>
 
+        {/* Flat Global Notification Banner Area */}
+        {notification && (
+          <div className={cn(
+            "px-8 py-4 border-b text-sm font-bold flex items-center gap-2",
+            notification.type === "success" 
+              ? "bg-neutral-50 dark:bg-[#111111] border-gray-200 dark:border-gray-800 text-emerald-600 dark:text-emerald-400" 
+              : "bg-red-50/50 dark:bg-red-950/10 border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400"
+          )}>
+            {notification.type === "success" ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+            <span>{notification.message}</span>
+          </div>
+        )}
+
         <div className="p-8">
           {activeTab === "profile" && (
-            <ProfileSettings avatarUrl={avatarUrl} setAvatarUrl={setAvatarUrl} formData={formData} setFormData={setFormData} />
+            <ProfileSettings 
+              avatarUrl={avatarUrl} 
+              setAvatarUrl={setAvatarUrl} 
+              setAvatarFile={setAvatarFile} 
+              formData={formData} 
+              setFormData={setFormData} 
+            />
           )}
           {activeTab === "appearance" && <AppearanceSettings theme={theme} setTheme={setTheme} />}
           {activeTab === "notifications" && <NotificationSettings />}
@@ -162,13 +203,13 @@ const SettingsUI: React.FC<SettingsProps> = ({ user, profile, onProfileUpdate })
         </div>
 
         <div className="p-6 bg-gray-50 dark:bg-[#141414] border-t border-gray-100 dark:border-gray-900 flex justify-end gap-3">
-          <button className="px-5 py-2.5 text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-[#141414] dark:hover:text-white transition-colors">
+          <button className="cursor-pointer px-5 py-2.5 text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-[#141414] dark:hover:text-white transition-colors">
             Cancel
           </button>
           <button 
             onClick={handleSave}
             disabled={isSaving}
-            className="flex items-center gap-2 px-6 py-2.5 bg-[#141414] dark:bg-white text-white dark:text-[#141414] rounded-xl text-sm font-bold hover:bg-black dark:hover:bg-gray-100 transition-colors shadow-sm disabled:opacity-50"
+            className="cursor-pointer flex items-center gap-2 px-6 py-2.5 bg-[#141414] dark:bg-white text-white dark:text-[#141414] rounded-xl text-sm font-bold hover:bg-black dark:hover:bg-gray-100 transition-colors shadow-sm disabled:opacity-50"
           >
             {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
             {isSaving ? "Saving..." : "Save Changes"}
@@ -184,11 +225,12 @@ const SettingsUI: React.FC<SettingsProps> = ({ user, profile, onProfileUpdate })
 interface ProfileSettingsProps {
   avatarUrl: string | null;
   setAvatarUrl: (url: string | null) => void;
+  setAvatarFile: (file: File | null) => void;
   formData: any;
   setFormData: React.Dispatch<React.SetStateAction<any>>;
 }
 
-const ProfileSettings: React.FC<ProfileSettingsProps> = ({ avatarUrl, setAvatarUrl, formData, setFormData }) => {
+const ProfileSettings: React.FC<ProfileSettingsProps> = ({ avatarUrl, setAvatarUrl, setAvatarFile, formData, setFormData }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -196,6 +238,7 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ avatarUrl, setAvatarU
     if (file) {
       if (file.size > 2 * 1024 * 1024) return alert("File size exceeds 2MB limit.");
       setAvatarUrl(URL.createObjectURL(file));
+      setAvatarFile(file);
     }
   };
 
@@ -215,7 +258,7 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ avatarUrl, setAvatarU
         </div>
         <div>
           <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
-          <button onClick={() => fileInputRef.current?.click()} className="px-4 py-2 bg-white dark:bg-[#141414] border border-gray-300 dark:border-gray-800 text-[#141414] dark:text-white rounded-xl text-sm font-bold hover:bg-gray-50 dark:hover:bg-[#1A1A1A] transition-colors">
+          <button onClick={() => fileInputRef.current?.click()} className="cursor-pointer px-4 py-2 bg-white dark:bg-[#141414] border border-gray-300 dark:border-gray-800 text-[#141414] dark:text-white rounded-xl text-sm font-bold hover:bg-gray-50 dark:hover:bg-[#1A1A1A] transition-colors">
             Change Avatar
           </button>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 font-medium">JPG, GIF or PNG. Max size 2MB</p>
@@ -242,6 +285,9 @@ const TeamSettings = () => {
   const [inviteName, setInviteName] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Section-specific inline status handler 
+  const [inlineNotice, setInlineNotice] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   const fetchTeam = async () => {
     try {
@@ -262,6 +308,7 @@ const TeamSettings = () => {
     if (!inviteEmail || !inviteName || isSubmitting) return;
 
     setIsSubmitting(true);
+    setInlineNotice(null);
     try {
       const autoPassword = Math.random().toString(36).slice(-10);
       await agentApi.create({
@@ -271,30 +318,39 @@ const TeamSettings = () => {
       });
       setInviteEmail("");
       setInviteName("");
+      setInlineNotice({ type: "success", message: "Agent credentials provisioned securely." });
       fetchTeam();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Team registration request rejected:", err);
+      const errMsg = err?.response?.data?.message || "Failed to finalize operator invitation.";
+      setInlineNotice({ type: "error", message: errMsg });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleRoleChange = async (id: number | string, currentName: string, newRole: string) => {
+    setInlineNotice(null);
     try {
       await agentApi.update(id, { name: currentName, role: newRole.toLowerCase() });
+      setInlineNotice({ type: "success", message: "Authority authorization policy updated." });
       fetchTeam();
     } catch (err) {
       console.error("Failed to modify agent scope privileges:", err);
+      setInlineNotice({ type: "error", message: "Failed to sync authority adjustments." });
     }
   };
 
   const handleDelete = async (id: number | string) => {
     if (!confirm("Permanently revoke workspace permissions for this operator?")) return;
+    setInlineNotice(null);
     try {
       await agentApi.delete(id);
+      setInlineNotice({ type: "success", message: "Workspace clearance credentials completely revoked." });
       fetchTeam();
     } catch (err) {
       console.error("Revocation sequence rejected:", err);
+      setInlineNotice({ type: "error", message: "Failed to execute structural team ejection." });
     }
   };
 
@@ -308,10 +364,20 @@ const TeamSettings = () => {
 
   return (
     <div className="space-y-8">
+      {/* Local Inline Section Notification Layout */}
+      {inlineNotice && (
+        <p className={cn(
+          "text-xs font-bold uppercase tracking-wider",
+          inlineNotice.type === "success" ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+        )}>
+          {inlineNotice.message}
+        </p>
+      )}
+
       <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-3">
         <input required type="text" placeholder="Agent Name" value={inviteName} onChange={(e) => setInviteName(e.target.value)} className="px-4 py-2.5 bg-gray-50 dark:bg-[#141414] border border-gray-300 dark:border-gray-800 rounded-xl focus:outline-none focus:bg-white dark:focus:bg-[#0A0A0A] focus:ring-1 focus:ring-gray-400 text-sm text-[#141414] dark:text-white" />
         <input required type="email" placeholder="Email address..." value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className="flex-1 px-4 py-2.5 bg-gray-50 dark:bg-[#141414] border border-gray-300 dark:border-gray-800 rounded-xl focus:outline-none focus:bg-white dark:focus:bg-[#0A0A0A] focus:ring-1 focus:ring-gray-400 text-sm text-[#141414] dark:text-white" />
-        <button type="submit" disabled={isSubmitting} className="px-5 py-2.5 bg-[#141414] dark:bg-white text-white dark:text-[#141414] rounded-xl text-sm font-bold hover:bg-black dark:hover:bg-gray-100 transition-colors flex items-center justify-center gap-2 shrink-0 disabled:opacity-50">
+        <button type="submit" disabled={isSubmitting} className="cursor-pointer px-5 py-2.5 bg-[#141414] dark:bg-white text-white dark:text-[#141414] rounded-xl text-sm font-bold hover:bg-black dark:hover:bg-gray-100 transition-colors flex items-center justify-center gap-2 shrink-0 disabled:opacity-50">
           {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />} Provision
         </button>
       </form>
@@ -332,11 +398,11 @@ const TeamSettings = () => {
               </div>
               <div className="flex items-center gap-6">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-green-600 dark:text-green-400">Active</span>
-                <select title="Assign Security Level" value={member.role ? member.role.charAt(0).toUpperCase() + member.role.slice(1) : "Agent"} onChange={(e) => handleRoleChange(member.id, member.name, e.target.value)} className="text-xs font-bold text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-800 rounded-lg px-2 py-1.5 bg-white dark:bg-[#0A0A0A] focus:outline-none">
+                <select title="Assign Security Level" value={member.role ? member.role.charAt(0).toUpperCase() + member.role.slice(1) : "Agent"} onChange={(e) => handleRoleChange(member.id, member.name, e.target.value)} className="cursor-pointer text-xs font-bold text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-800 rounded-lg px-2 py-1.5 bg-white dark:bg-[#0A0A0A] focus:outline-none">
                   <option value="Agent">Agent</option>
                   <option value="Admin">Admin</option>
                 </select>
-                <button onClick={() => handleDelete(member.id)} aria-label="Revoke Privileges" className="text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                <button onClick={() => handleDelete(member.id)} aria-label="Revoke Privileges" className="cursor-pointer text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
               </div>
             </div>
           );
@@ -356,7 +422,7 @@ const AppearanceSettings = ({ theme, setTheme }: { theme: string; setTheme: (t: 
           { id: "dark", icon: <Moon size={20} />, label: "Dark" },
           { id: "system", icon: <Monitor size={20} />, label: "System" },
         ].map((option) => (
-          <button key={option.id} onClick={() => setTheme(option.id as any)} className={cn("p-4 border-2 rounded-xl transition-all flex flex-col items-center justify-center gap-2", theme === option.id ? "border-[#141414] dark:border-white bg-gray-50 dark:bg-[#141414] text-[#141414] dark:text-white" : "border-gray-100 dark:border-gray-900 text-gray-400 hover:border-gray-300 dark:border-gray-800 hover:text-[#141414] dark:hover:text-white")}>
+          <button key={option.id} onClick={() => setTheme(option.id as any)} className={cn("cursor-pointer p-4 border-2 rounded-xl transition-all flex flex-col items-center justify-center gap-2", theme === option.id ? "border-[#141414] dark:border-white bg-gray-50 dark:bg-[#141414] text-[#141414] dark:text-white" : "border-gray-100 dark:border-gray-900 text-gray-400 hover:border-gray-300 dark:hover:border-gray-800 hover:text-[#141414] dark:hover:text-white")}>
             {option.icon}
             <span className="text-xs font-bold uppercase tracking-wider">{option.label}</span>
           </button>
@@ -367,7 +433,7 @@ const AppearanceSettings = ({ theme, setTheme }: { theme: string; setTheme: (t: 
       <h3 className="text-sm font-bold text-[#141414] dark:text-white mb-3">Accent Color</h3>
       <div className="flex gap-3">
         {["#141414", "#3B82F6", "#EF4444", "#10B981", "#F59E0B"].map((color) => (
-          <button key={color} title={`Select ${color}`} className="w-10 h-10 rounded-full border-2 border-white dark:border-[#0A0A0A] shadow-sm transition-transform hover:scale-110" style={{ backgroundColor: color }} />
+          <button key={color} title={`Select ${color}`} className="cursor-pointer w-10 h-10 rounded-full border-2 border-white dark:border-[#0A0A0A] shadow-sm transition-transform hover:scale-110" style={{ backgroundColor: color }} />
         ))}
       </div>
     </div>
@@ -410,7 +476,7 @@ const RolesSettings = () => (
         </div>
         <div className="flex items-center gap-6">
           <span className="text-xs font-bold text-gray-400">{role.members} members</span>
-          <button className="text-xs font-bold text-[#141414] dark:text-white hover:underline">Edit</button>
+          <button className="cursor-pointer text-xs font-bold text-[#141414] dark:text-white hover:underline">Edit</button>
         </div>
       </div>
     ))}
@@ -425,7 +491,7 @@ const BillingSettings = () => (
         <h3 className="text-4xl font-black mt-1">Agency Pro</h3>
         <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">Ksh 4,500/month • Billed annually</p>
       </div>
-      <button className="bg-white dark:bg-[#141414] text-[#141414] dark:text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-gray-100 dark:hover:bg-[#1A1A1A] transition-colors">Upgrade Plan</button>
+      <button className="cursor-pointer bg-white dark:bg-[#141414] text-[#141414] dark:text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-gray-100 dark:hover:bg-[#1A1A1A] transition-colors">Upgrade Plan</button>
     </div>
     <div>
       <h3 className="text-sm font-bold text-[#141414] dark:text-white mb-4">Payment Methods</h3>
@@ -439,7 +505,7 @@ const BillingSettings = () => (
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Expires 12/2025</p>
           </div>
         </div>
-        <button className="text-xs font-bold text-[#141414] dark:text-white hover:underline">Edit</button>
+        <button className="cursor-pointer text-xs font-bold text-[#141414] dark:text-white hover:underline">Edit</button>
       </div>
     </div>
     <div>
@@ -448,7 +514,7 @@ const BillingSettings = () => (
         {["March 2024", "February 2024", "January 2024"].map((month) => (
           <div key={month} className="flex justify-between items-center py-3 border-b border-gray-50 dark:border-gray-900 last:border-0 last:pb-0">
             <span className="text-sm font-bold text-gray-600 dark:text-gray-300">{month}</span>
-            <button className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">Download PDF</button>
+            <button className="cursor-pointer text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">Download PDF</button>
           </div>
         ))}
       </div>
@@ -463,21 +529,21 @@ const SecuritySettings = () => (
         <p className="font-bold text-sm text-[#141414] dark:text-white">Two-Factor Authentication</p>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Add an extra layer of security</p>
       </div>
-      <button className="px-4 py-2 bg-white dark:bg-[#141414] border border-gray-300 dark:border-gray-800 text-[#141414] dark:text-white rounded-xl text-xs font-bold hover:bg-gray-50 dark:hover:bg-[#1A1A1A] transition-colors">Enable 2FA</button>
+      <button className="cursor-pointer px-4 py-2 bg-white dark:bg-[#141414] border border-gray-300 dark:border-gray-800 text-[#141414] dark:text-white rounded-xl text-xs font-bold hover:bg-gray-50 dark:hover:bg-[#1A1A1A] transition-colors">Enable 2FA</button>
     </div>
     <div className="flex justify-between items-center pb-6 border-b border-gray-100 dark:border-gray-900">
       <div>
         <p className="font-bold text-sm text-[#141414] dark:text-white">Session Management</p>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Active sessions: Chrome on Mac, Safari on iPhone</p>
       </div>
-      <button className="text-xs font-bold text-red-500 hover:underline">Logout All</button>
+      <button className="cursor-pointer text-xs font-bold text-red-500 hover:underline">Logout All</button>
     </div>
     <div className="flex justify-between items-center">
       <div>
         <p className="font-bold text-sm text-[#141414] dark:text-white">API Keys</p>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Generate API keys for programmatic access</p>
       </div>
-      <button className="px-4 py-2 bg-white dark:bg-[#141414] border border-gray-300 dark:border-gray-800 text-[#141414] dark:text-white rounded-xl text-xs font-bold hover:bg-gray-50 dark:hover:bg-[#1A1A1A] transition-colors">Generate Key</button>
+      <button className="cursor-pointer px-4 py-2 bg-white dark:bg-[#141414] border border-gray-300 dark:border-gray-800 text-[#141414] dark:text-white rounded-xl text-xs font-bold hover:bg-gray-50 dark:hover:bg-[#1A1A1A] transition-colors">Generate Key</button>
     </div>
     <div className="pt-6">
       <div className="border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/10 p-5 rounded-xl flex items-start gap-3">
@@ -485,14 +551,13 @@ const SecuritySettings = () => (
         <div>
           <p className="font-bold text-sm text-red-700 dark:text-red-400">Danger Zone</p>
           <p className="text-xs font-medium text-red-600 dark:text-red-500 mt-1">Permanently delete your account and all associated data.</p>
-          <button className="mt-3 text-xs font-bold text-red-700 dark:text-red-400 hover:underline">Delete Account</button>
+          <button className="cursor-pointer mt-3 text-xs font-bold text-red-700 dark:text-red-400 hover:underline">Delete Account</button>
         </div>
       </div>
     </div>
   </div>
 );
 
-// Fallback api reference in case your imports shift paths
 const agentApi = {
   getAll: async () => (await api.get('/v1/agents')).data,
   create: async (p: any) => (await api.post('/v1/agents', p)).data,

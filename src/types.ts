@@ -63,6 +63,7 @@ export interface User {
   email: string;
   role: 'admin' | 'broker' | 'agent';
   agency_id: number | null;
+  avatar_path: string;
 }
 
 export interface UserProfile {
