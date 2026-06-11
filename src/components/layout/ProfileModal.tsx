@@ -1,6 +1,7 @@
 import React from "react";
 import { X, Mail, Building, LogOut } from "lucide-react";
 import { motion } from "motion/react";
+import { useNavigate } from "react-router-dom"; // Added for explicit redirection
 import { useAuth } from "../../lib/AuthContext";
 
 interface ProfileModalProps {
@@ -9,7 +10,22 @@ interface ProfileModalProps {
 }
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userInitials }) => {
-  const { profile, user, logout } = useAuth();
+  const { profile, logout } = useAuth();
+  const navigate = useNavigate(); // Hook to force the URL change
+
+  const handleSignOut = async () => {
+    try {
+      onClose();        // Close modal first
+      await logout();   // Clear AuthContext state and localStorage
+      
+      // Determine where to go based on role or default to standard login
+      // Compare role case-insensitively to handle roles like 'Admin' | 'Agent'
+      const loginPath = profile?.role?.toLowerCase() === 'admin' ? "/auth/admin-login" : "/auth/login";
+      navigate(loginPath, { replace: true });
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
 
   return (
     <motion.div 
@@ -68,10 +84,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userInitial
           </div>
 
           <button 
-            onClick={() => {
-              onClose();
-              logout();
-            }}
+            onClick={handleSignOut}
             className="w-full flex items-center justify-center gap-2 py-4 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl font-medium transition-colors"
           >
             <LogOut size={18} /> Sign Out

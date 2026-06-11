@@ -1,113 +1,54 @@
-// src/api/vault.ts
-
-import { api } from '../lib/api';
-import axios from 'axios';
-import { PresignedUrlRequest, PresignedUrlResponse, KycDocument, SecureDocumentType } from '../types';
-
-export interface GetDocumentsParams {
-  search?: string;
-  category?: string;
-  status?: string;
-  date_range?: string;
-  page?: number;
-  limit?: number;
-}
+import { supabase } from "../lib/supabase";
 
 export const vaultApi = {
-  /**
-   * 1. Get a secure AWS pre-signed upload URL from Laravel
-   */
-  getPresignedUploadUrl: async (payload: PresignedUrlRequest): Promise<PresignedUrlResponse> => {
-    // FIXED: Correct endpoint spelling
-    const response = await api.post<PresignedUrlResponse>('/vault/presigned-upload-url', payload);
-    return response.data;
-  },
-
-  /**
-   * 2. Upload file binary directly to S3 storage bucket using the retrieved URL
-   */
-  uploadFileToS3: async (presignedUrl: string, file: File, mimeType: string): Promise<void> => {
-    await axios.put(presignedUrl, file, {
-      headers: {
-        'Content-Type': mimeType,
-      },
-    });
-  },
-
-  /**
-   * Orchestrated workflow execution helper
-   * FIXED: Use 'file_category' instead of 'document_type' to match Laravel validation
-   */
-  executeSecureUpload: async (
-    file: File, 
-    documentType: SecureDocumentType, 
-    clientId: string
-  ): Promise<string> => {
+  executeSecureUpload: async (file: File, documentType: 'kyc' | 'title_deed' | 'property_image'): Promise<string> => {
+    const bucketName = import.meta.env.VITE_SUPABASE_BUCKET;
     
-    // Step 1: Request upload token & destination path from Laravel
-    const { upload_url, file_path } = await vaultApi.getPresignedUploadUrl({
-      client_filename: file.name,  // Required by Laravel validation
-      mime_type: file.type,        // Maps to mime_type
-      file_category: documentType, // CHANGED: 'document_type' -> 'file_category'
-      client_id: clientId,         // Maps to client_id
-    });
+    if (!bucketName) {
+        throw new Error('Storage bucket name is missing from environment variables.');
+    }
 
-    // Step 2: Upload raw binary directly to S3 bucket storage bypass
-    await vaultApi.uploadFileToS3(upload_url, file, file.type);
-
-    // Return S3 object reference key back for backend database persistence mapping
-    return file_path;
-  },
-
-  /**
-   * 3. Get all documents with optional filters
-   */
-  getDocuments: async (params?: GetDocumentsParams): Promise<{ data: KycDocument[]; total: number }> => {
-    const cleanedParams: Record<string, any> = {};
-
-    if (params?.search) cleanedParams.search = params.search;
-    if (params?.category && params.category !== 'all') cleanedParams.category = params.category;
-    if (params?.status && params.status !== 'all') cleanedParams.status = params.status;
-    if (params?.date_range && params.date_range !== 'all') cleanedParams.date_range = params.date_range;
-    if (params?.page) cleanedParams.page = params.page;
-    if (params?.limit) cleanedParams.limit = params.limit;
-
-    const response = await api.get('/vault/documents', { params: cleanedParams });
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
     
-    return {
-      data: response.data.data || response.data || [],
-      total: response.data.total || (response.data.data?.length || 0),
-    };
+    // Nests Makao uploads in a dedicated folder
+    const filePath = `makao/${documentType}s/${fileName}`; 
+
+    const { error } = await supabase.storage
+      .from(bucketName) 
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: file.type
+      });
+
+    if (error) {
+      console.error('Supabase upload error:', error);
+      throw new Error('Failed to upload file to storage bucket.');
+    }
+
+    // CRITICAL FIX: Return the raw internal path, NOT the public URL.
+    // This is what gets saved to the Laravel database as `s3_path`.
+    return filePath; 
   },
 
-  /**
-   * 4. Get single document by ID
-   */
-  getDocumentById: async (documentId: string | number): Promise<KycDocument> => {
-    const response = await api.get(`vault/documents/${documentId}`);
-    return response.data.data || response.data;
-  },
+  getSignedUrl: async (filePath: string): Promise<string> => {
+    const bucketName = import.meta.env.VITE_SUPABASE_BUCKET;
+    if (!bucketName || !filePath) return filePath;
 
-  /**
-   * 5. Update document status
-   */
-  updateDocumentStatus: async (documentId: string | number, status: string): Promise<KycDocument> => {
-    const response = await api.patch(`/vault/documents/${documentId}/status`, { status });
-    return response.data.data || response.data;
-  },
+    // If it's already a full HTTP URL (e.g., an external placeholder or old data), just return it
+    if (filePath.startsWith('http')) return filePath;
 
-  /**
-   * 6. Delete document
-   */
-  deleteDocument: async (documentId: string | number): Promise<void> => {
-    await api.delete(`/vault/documents/${documentId}`);
-  },
+    // Request a secure URL valid for 1 hour (3600 seconds) using the raw path
+    const { data, error } = await supabase.storage
+      .from(bucketName)
+      .createSignedUrl(filePath, 3600);
 
-  /**
-   * 7. Get document download URL
-   */
-  getDocumentDownloadUrl: async (documentId: string | number): Promise<string> => {
-    const response = await api.get(`/vault/documents/${documentId}/download`);
-    return response.data.url || response.data.download_url;
-  },
+    if (error || !data) {
+      console.error("Failed to sign URL:", error);
+      return filePath; // Fallback
+    }
+
+    return data.signedUrl;
+  }
 };

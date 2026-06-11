@@ -50,6 +50,7 @@ export interface RegisterPayload {
   email: string;
   password: string;
   agency_code: string; 
+  role?: string;
 }
 
 export interface LoginCredentials {
@@ -106,8 +107,10 @@ export type PropertyStatus = 'Active' | 'Pending' | 'Sold' | 'Expired';
 export interface PropertyImage {
   id: number;
   property_id: number;
-  url: string;
+  s3_path: string;
+  is_primary: number;
   created_at: string;
+  updated_at: string;
 }
 
 export interface Property {
@@ -135,11 +138,15 @@ export interface CreatePropertyPayload {
   baths: number;
   sqft: number;
   description?: string;
+  images?: string[];
   status?: PropertyStatus;
   expires_at?: string;
 }
 
-export type UpdatePropertyPayload = Partial<CreatePropertyPayload>;
+export interface UpdatePropertyPayload extends Partial<CreatePropertyPayload> {
+  // If you defined UpdatePropertyPayload separately, add it here too:
+  images?: string[]; // 👈 ADD THIS LINE
+}
 
 // ==========================================
 // 5. CRM Pipeline & Kanban Leads
@@ -202,14 +209,43 @@ export interface CreateLeadPayload {
 }
 
 export interface KycDocument {
-  id: string;
-  agencyId: string;
-  userId?: string;
-  type: 'passport' | 'national_id' | 'title_deed' | 'utility_bill' | string;
-  status: 'pending' | 'approved' | 'rejected';
-  filePath: string;
-  fileName: string;
-  updatedAt: string;
+  // Primary Keys & Relationships
+  id: string | number;
+  agency_id: string | number;
+  uploaded_by?: string | number | null;
+  
+  // Polymorphic Relations
+  documentable_type: string;
+  documentable_id: string | number;
+
+  // Document Details
+  document_type: 
+    | 'title_deed' 
+    | 'national_id' 
+    | 'national_id_front' 
+    | 'national_id_back' 
+    | 'passport' 
+    | 'kra_pin' 
+    | 'selfie_verification' 
+    | 'proof_of_address' 
+    | 'contract';
+  s3_private_path: string;
+  notes?: string | null;
+  verification_status: 'pending_review' | 'verified' | 'rejected';
+
+  // OCR & Machine Learning Data
+  extracted_text?: string | null;
+  ml_data?: Record<string, any> | null;
+
+  // Timestamps
+  created_at: string;
+  updated_at: string;
+
+  // ─── Frontend Mapped Properties (Injected by API Interceptors/Queries) ───
+  type?: string; 
+  status?: 'pending_review' | 'verified' | 'rejected';
+  userId?: string | number; // Often mapped from documentable_id or uploaded_by
+  signedUrl?: string; // Appended when generating secure viewing links
 }
 
 export interface GeneratePresignedUrlPayload {

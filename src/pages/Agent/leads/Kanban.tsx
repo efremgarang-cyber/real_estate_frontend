@@ -11,13 +11,13 @@ import {
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { Loader2, CreditCard, Sparkles, Lock, Search } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { formatCurrency, cn } from "../../lib/utils";
-import { useAuth } from "../../../src/lib/AuthContext";
-import { Lead, KanbanStage } from "../../types";
-import { leadApi } from "../../api/leads";
-import { KanbanColumn } from "../../components/KanbanColumn";
-import { LeadDetailModal } from "../../components/LeadDetailModal";
-import { CloseDealModal } from "../../components/CloseDealModal";
+import { formatCurrency, cn } from "../../../lib/utils";
+import { useAuth } from "../../../lib/AuthContext";
+import { Lead, KanbanStage } from "../../../types";
+import { leadApi } from "../../../api/leads";
+import { KanbanColumn } from "../../../components/KanbanColumn";
+import { LeadDetailModal } from "../../../components/LeadDetailModal";
+import { CloseDealModal } from "../../../components/CloseDealModal";
 
 interface Column {
   id: KanbanStage;

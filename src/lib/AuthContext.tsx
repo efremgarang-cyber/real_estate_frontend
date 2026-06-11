@@ -7,7 +7,7 @@ interface AuthContextType {
   profile: UserProfile | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, displayName: string, agencyCode: string) => Promise<void>;
+  register: (email: string, password: string, displayName: string, agencyCode: string, role?: string) => Promise<void>;
   logout: () => Promise<void>;
   createAgencyAndProfile: (agencyName: string, role: "Admin" | "Agent") => Promise<void>;
   joinAgency: (joinCode: string) => Promise<void>;
@@ -23,7 +23,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Bootstrap session on mount or tab refresh
   useEffect(() => {
     const bootstrapSession = async () => {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("makao_token");
       if (!token) {
         setLoading(false);
         return;
@@ -34,7 +34,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setProfile(backendProfile || null);
       } catch (error) {
         console.error("Session restoration failed:", error);
-        localStorage.removeItem("token");
+        localStorage.removeItem("makao_token");
         setUser(null);
         setProfile(null);
       } finally {
@@ -48,7 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     try {
       const data = await authApi.login({ email, password });
-      localStorage.setItem("token", data.token);
+      localStorage.setItem("makao_token", data.token);
       setUser(data.user);
       setProfile(data.profile || null);
     } catch (error) {
@@ -62,16 +62,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     email: string,
     password: string,
     displayName: string,
-    agencyCode: string
+    agencyCode: string,
+    role?: string
   ) => {
     try {
       const data = await authApi.register({
         email,
         password,
         name: displayName,
-        agency_code: agencyCode,
+        agency_code: agencyCode
       });
-      localStorage.setItem("token", data.token);
+      localStorage.setItem("makao_token", data.token);
       setUser(data.user);
       // profile is null here — triggers workspace screen only if backend
       // couldn't resolve the agency (shouldn't happen with required agency_code)
@@ -88,7 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error("Remote token revocation failed:", error);
     } finally {
-      localStorage.removeItem("token");
+      localStorage.removeItem("makao_token");
       setUser(null);
       setProfile(null);
     }
