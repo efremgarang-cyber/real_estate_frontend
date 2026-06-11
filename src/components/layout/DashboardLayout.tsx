@@ -8,7 +8,8 @@ import {
   Settings, 
   Menu,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  CreditCard 
 } from "lucide-react";
 import { useAuth } from "../../lib/AuthContext";
 import { cn } from "../../lib/utils";
@@ -26,6 +27,8 @@ const navItems = [
   { name: "Overview", href: "/dashboard", icon: BarChart3 },
   { name: "Properties", href: "/properties", icon: Home },
   { name: "Leads", href: "/leads", icon: Users },
+  { name: "Escrows", href: "/escrows", icon: ShieldCheck },
+  { name: "Plans", href: "/subscriptions", icon: CreditCard }, // Standardized to match router
   { name: "KYC Vault", href: "/vault", icon: ShieldCheck },
 ];
 
@@ -157,16 +160,17 @@ export const Shell: React.FC<LayoutProps> = ({ children }) => {
             <img src="/makao-icon-dark.svg" alt="Makao Logo" className="w-6 h-6 object-contain" />
             <h1 className="font-display text-xl font-bold text-[#141414]">MAKAO</h1>
           </div>
-          <button 
+          <button
             onClick={() => setMobileMenuOpen(true)}
             className="p-2 text-gray-500 hover:bg-gray-50 rounded-xl"
+            title="Menu"
           >
             <Menu size={24} />
           </button>
         </header>
 
-        {/* Dynamic Page Header (Desktop & Mobile) */}
-        <div className="px-6 md:px-10 py-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 z-10">
+        {/* Dynamic Page Header */}
+        <div className="px-6 md:px-10 pt-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 z-10">
           <div>
             <h2 className="font-display text-2xl font-bold text-[#141414]">
               {currentPageName}

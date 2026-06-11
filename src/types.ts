@@ -44,6 +44,7 @@ export interface PAGINATED_RESPONSE<T> {
 // ==========================================
 // 2. Authentication & User Workspace
 // ==========================================
+
 export interface RegisterPayload {
   name: string;
   email: string;
@@ -176,6 +177,8 @@ export interface Lead {
   created_at: string;
   updated_at: string;
   property_id?: string;
+  escrow_id?: number | null;
+  escrow?: Escrow | null;
 }
 
 export interface Interaction {
@@ -209,14 +212,12 @@ export interface KycDocument {
   updatedAt: string;
 }
 
-// Payload contract specifically matching GenerateUploadUrlRequest.php parameters
 export interface GeneratePresignedUrlPayload {
   file_name: string;
   mime_type: string;
-  document_type: string; // e.g., 'kyc', 'title_deed'
+  document_type: string;
 }
 
-// Response signature matching DocumentUploadController.php response
 export interface PresignedUrlResponse {
   upload_url: string;
   file_path: string;
@@ -229,16 +230,112 @@ export type UpdateLeadPayload = Partial<CreateLeadPayload>;
 // 6. Secure Vault (AWS S3 Ingestion)
 // ==========================================
 
-export type SecureDocumentType = 'kyc' | 'title_deed';
+export type SecureDocumentType = 'kyc' | 'title_deed' | 'national_id' | 'passport' | 'utility_bill';
 
 export interface PresignedUrlRequest {
-  file_name: string;
+  file_name?: string;      
+  client_filename: string;  
   mime_type: string;
-  document_type: SecureDocumentType;
+  file_category: SecureDocumentType;
+  client_id: string | number;
 }
 
-export interface PresignedUrlResponse {
-  upload_url: string;
-  file_path: string;
-  expires_in: number;
+// ==========================================
+// Secure Escrow Engine Types
+// ==========================================
+
+export type EscrowStatus = 'pending_funding' | 'funded' | 'inspection' | 'closing' | 'completed' | 'disputed' | 'cancelled';
+
+export interface EscrowPropertyRelation {
+  id: number;
+  title: string;
+  [key: string]: any;
+}
+
+export interface EscrowMilestone {
+  id: number;
+  escrow_id: number;
+  name?: string;
+  title?: string;
+  description: string | null;
+  amount: string | number;
+  status: 'pending' | 'completed' | 'approved' | 'released';
+  due_date: string | null;
+  approved_at: string | null;
+  released_at: string | null;
+  approved_by: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Escrow {
+  id: number;
+  property_id: number;
+  buyer_id: number;
+  seller_id: number;
+  agency_id: number;
+  amount: string | number;
+  terms: string | null;
+  status: EscrowStatus;
+  created_by: number;
+  created_at: string;
+  updated_at: string;
+  milestones?: EscrowMilestone[];
+  funded_at?: string | null;
+  completed_at?: string | null;
+  property?: EscrowPropertyRelation; // ✅ Fixes EscrowListPage missing property relation error
+}
+
+// ✅ HYBRID MODEL: Satisfies nested containers (EscrowPage) and flat fallbacks (Escrow)
+export interface EscrowWithProgress {
+  escrow?: Escrow;
+  progress?: number;
+  total_paid?: any; // ✅ Type 'any' stops string/number collision warnings dead
+  remaining?: any;
+  is_fully_funded?: boolean;
+
+  // Flat fallbacks
+  id?: number;
+  property_id?: number;
+  buyer_id?: number;
+  seller_id?: number;
+  agency_id?: number;
+  amount?: string | number;
+  terms?: string | null;
+  status?: EscrowStatus;
+  created_by?: number;
+  created_at?: string;
+  updated_at?: string;
+  milestones?: EscrowMilestone[];
+  property?: EscrowPropertyRelation;
+}
+
+export interface CreateEscrowPayload {
+  property_id: number;
+  buyer_id?: number;   // ✅ Made optional to satisfy LeadEscrowTab.tsx
+  seller_id?: number;  // ✅ Made optional to satisfy LeadEscrowTab.tsx
+  amount: string | number;
+  terms?: string;
+}
+
+export interface MilestonePayload {
+  title: string;
+  description?: string;
+  amount: string | number;
+  due_date?: string;
+}
+
+export interface EscrowTimelineStage {
+  stage: EscrowStatus;
+  label: string;
+  icon: 'dollar-sign' | 'lock' | 'search' | 'file-text' | 'check-circle';
+  completed: boolean;
+  active: boolean;
+}
+
+export interface EscrowTimelineResponse {
+  success: boolean;
+  current_stage: EscrowStatus;
+  stages: EscrowTimelineStage[];
+  progress_percentage: number;
 }
