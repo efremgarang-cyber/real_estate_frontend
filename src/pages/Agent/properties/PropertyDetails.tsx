@@ -16,16 +16,26 @@ import html2canvas from "html2canvas";
 interface ToastNotification { id: string; type: 'success' | 'error' | 'info' | 'warning'; title: string; message: string; }
 
 const Toast: React.FC<{ notification: ToastNotification; onClose: () => void }> = ({ notification, onClose }) => {
-  React.useEffect(() => { const timer = setTimeout(() => { onClose(); }, 5000); return () => clearTimeout(timer); }, [onClose]);
+  React.useEffect(() => { 
+    const timer = setTimeout(() => { onClose(); }, 5000); 
+    return () => clearTimeout(timer); 
+  }, [onClose]);
+
   const icons = { success: <Check className="w-5 h-5 text-green-600" />, error: <AlertCircle className="w-5 h-5 text-red-600" />, warning: <AlertCircle className="w-5 h-5 text-orange-600" />, info: <Info className="w-5 h-5 text-blue-600" /> };
   const colors = { success: "bg-green-50 border-green-200", error: "bg-red-50 border-red-200", warning: "bg-orange-50 border-orange-200", info: "bg-blue-50 border-blue-200" };
+  
   return (
     <div className={`fixed top-4 right-4 z-50 w-96 rounded-xl border shadow-lg ${colors[notification.type]} animate-in slide-in-from-top-2 duration-300`}>
       <div className="p-4">
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0">{icons[notification.type]}</div>
-          <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-gray-900">{notification.title}</p><p className="text-sm text-gray-600 mt-0.5">{notification.message}</p></div>
-          <button title="Close notification" onClick={onClose} className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors"><X className="w-4 h-4" /></button>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-900">{notification.title}</p>
+            <p className="text-sm text-gray-600 mt-0.5">{notification.message}</p>
+          </div>
+          <button title="Close notification" onClick={onClose} className="cursor-pointer flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </div>
@@ -102,20 +112,16 @@ export const PropertyDetail: React.FC = () => {
             .filter(Boolean)
         : [];
 
-      // FIX: Synchronously generate public URLs without network delays
       const processedUrls = realImageUrls.map((url: string) => {
-        // 1. If it's already a full HTTP URL, use it directly
         if (url.startsWith('http://') || url.startsWith('https://')) {
           return url;
         }
         
-        // 2. Generate the public URL instantly using the correct bucket
         const { data } = supabase.storage.from('user-files').getPublicUrl(url);
         
         return data.publicUrl;
       });
 
-      // Filter out any potential empty strings
       const validUrls = processedUrls.filter(Boolean) as string[];
       
       const imagesToDisplay = validUrls.length > 0
@@ -229,7 +235,7 @@ export const PropertyDetail: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center p-12 font-sans">
         <h2 className="font-display text-2xl font-bold text-[#141414] mb-4">Property Not Found</h2>
-        <Link to="/agent/properties" className="px-6 py-3 bg-[#141414] text-white rounded-xl font-medium hover:bg-black transition-colors">Back to Listings</Link>
+        <Link to="/agent/properties" className="cursor-pointer px-6 py-3 bg-[#141414] text-white rounded-xl font-medium hover:bg-black transition-colors">Back to Listings</Link>
       </div>
     );
   }
@@ -241,34 +247,33 @@ export const PropertyDetail: React.FC = () => {
       </div>
       
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4" data-html2canvas-ignore>
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-[#141414] transition-colors">
+        <button onClick={() => navigate(-1)} className="cursor-pointer flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-[#141414] transition-colors">
           <ArrowLeft size={16} /> Back to Listings
         </button>
         <div className="flex gap-3">
           {isEditing ? (
             <>
-              {/* FIX: Cancel Button Added */}
               <button 
                 onClick={handleCancelEdit} 
-                className="px-4 py-2.5 bg-white border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors"
+                className="cursor-pointer px-4 py-2.5 bg-white border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
               <button 
                 onClick={handleSaveChanges} 
                 disabled={updateMutation.isPending} 
-                className="flex items-center gap-2 px-4 py-2.5 bg-[#141414] text-white rounded-xl text-sm font-medium hover:bg-black transition-colors disabled:opacity-70"
+                className="cursor-pointer flex items-center gap-2 px-4 py-2.5 bg-[#141414] text-white rounded-xl text-sm font-medium hover:bg-black transition-colors disabled:opacity-70"
               >
                 {updateMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} 
                 {updateMutation.isPending ? "Saving..." : "Save Changes"}
               </button>
             </>
           ) : (
-            <button onClick={handleEditToggle} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-[#141414] rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">
+            <button onClick={handleEditToggle} className="cursor-pointer flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-[#141414] rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">
               <Edit2 size={16} /> Edit Details
             </button>
           )}
-          <button onClick={generatePDFBrochure} disabled={isGeneratingPDF} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-[#141414] rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">
+          <button onClick={generatePDFBrochure} disabled={isGeneratingPDF} className="cursor-pointer flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-[#141414] rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">
             {isGeneratingPDF ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} Brochure
           </button>
         </div>
@@ -280,7 +285,7 @@ export const PropertyDetail: React.FC = () => {
           {isEditing && (
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
               <input type="file" ref={imageInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
-              <button onClick={() => imageInputRef.current?.click()} disabled={uploadImageMutation.isPending} className="flex items-center gap-2 px-6 py-3 bg-white text-[#141414] rounded-xl font-bold shadow-lg hover:scale-105 transition-transform">
+              <button onClick={() => imageInputRef.current?.click()} disabled={uploadImageMutation.isPending} className="cursor-pointer flex items-center gap-2 px-6 py-3 bg-white text-[#141414] rounded-xl font-bold shadow-lg hover:scale-105 transition-transform">
                 {uploadImageMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <ImageIcon size={18} />} Change Main Image
               </button>
             </div>
@@ -359,7 +364,7 @@ export const PropertyDetail: React.FC = () => {
                 <input required type="tel" placeholder="Client Phone" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className="w-full p-3 border border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl bg-gray-50 focus:bg-white focus:ring-1 focus:ring-[#141414] focus:outline-none transition-all" />
                 <input type="number" placeholder="Offer Amount (Optional)" value={offerAmount} onChange={e => setOfferAmount(e.target.value)} className="w-full p-3 border border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl bg-gray-50 focus:bg-white focus:ring-1 focus:ring-[#141414] focus:outline-none transition-all" />
                 
-                <button type="submit" disabled={leadMutation.isPending} className="w-full py-4 bg-[#141414] text-white rounded-xl font-bold hover:bg-black transition-colors disabled:opacity-70 flex items-center justify-center gap-2">
+                <button type="submit" disabled={leadMutation.isPending} className="cursor-pointer w-full py-4 bg-[#141414] text-white rounded-xl font-bold hover:bg-black transition-colors disabled:opacity-70 flex items-center justify-center gap-2">
                   {leadMutation.isPending ? <Loader2 className="animate-spin" /> : <Send size={18} />} Log Offer
                 </button>
               </form>
@@ -367,7 +372,7 @@ export const PropertyDetail: React.FC = () => {
               <div className="bg-green-50 text-green-700 p-6 rounded-xl flex flex-col items-center text-center gap-3 border border-green-200">
                 <CheckCircle size={32} />
                 <p className="font-bold">Offer Logged Successfully</p>
-                <button onClick={() => setLeadSuccess(false)} className="text-sm font-semibold hover:underline mt-2">Submit another offer</button>
+                <button onClick={() => setLeadSuccess(false)} className="cursor-pointer text-sm font-semibold hover:underline mt-2">Submit another offer</button>
               </div>
             )}
           </div>

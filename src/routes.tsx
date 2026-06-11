@@ -5,8 +5,13 @@ import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 import { AgentLayout } from "./components/layout/AgentLayout";
 import { AdminLayout } from "./components/layout/AdminLayout"; 
 
-// Public / Shared Layer
+// Public / Client Layer
 import LandingPage from "./pages/LandingPage";
+import { PublicListings } from "./pages/Public/Listings";
+import { PublicPropertyDetails } from "./pages/Public/PropertyDetails";
+import { PublicOfferCheckout } from "./pages/Public/OfferCheckout";
+
+// Auth Components
 import { LoginPage } from "./pages/Agent/auth/LoginPage";
 import { AdminLoginPage } from "./pages/Admin/auth/AdminLoginPage";
 
@@ -35,7 +40,13 @@ export const appRoutes: RouteObject[] = [
   {
     path: "/",
     children: [
+      // ── Public Client Routes (No Auth Required) ──
       { index: true, element: <LandingPage /> },
+      {path: "properties", element: <PublicListings />},
+      { path: "properties/:id", element: <PublicPropertyDetails /> },
+      { path: "properties/:id/offer", element: <PublicOfferCheckout /> },
+      
+      // ── Authentication ──
       {
         path: "auth",
         children: [
@@ -44,6 +55,8 @@ export const appRoutes: RouteObject[] = [
           { path: "admin-login", element: <AdminLoginPage /> },
         ],
       },
+
+      // ── Agent Protected Routes ──
       {
         path: "agent",
         element: <ProtectedRoute />,
@@ -66,6 +79,8 @@ export const appRoutes: RouteObject[] = [
           },
         ],
       },
+
+      // ── Admin Protected Routes ──
       {
         path: "admin",
         element: <ProtectedRoute />,

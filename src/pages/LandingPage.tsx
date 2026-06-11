@@ -70,40 +70,38 @@ export const LandingPage: React.FC = () => {
       setLoading(true);
       try {
         const response = await propertyApi.getAllPublic();
-        const data = response.data || [];
-
-        const activeListings = data.filter((p: Property) => p.status?.toLowerCase() === "active").slice(0, 6);
         
-        const signedListings = await Promise.all(
-          activeListings.map(async (property: Property) => {
-            try {
-              const firstImageEntry = property.images?.[0];
-              const rawUrl = typeof firstImageEntry === 'object' && firstImageEntry !== null
-                ? (firstImageEntry as any).s3_path || (firstImageEntry as any).url 
-                : (firstImageEntry as string);
-                
-              const signedUrl = rawUrl 
-                ? await propertyApi.signImage(rawUrl) 
-                : "https://images.pexels.com/photos/2587054/pexels-photo-2587054.jpeg?auto=compress&cs=tinysrgb&w=600";
-                
-              return { ...property, _signedMainImage: signedUrl };
-            } catch (innerError) {
-              // Return structural fallback if S3 generation pipeline trips up
-              return { 
-                ...property, 
-                _signedMainImage: "https://images.pexels.com/photos/2587054/pexels-photo-2587054.jpeg?auto=compress&cs=tinysrgb&w=600" 
-              };
-            }
-          })
-        );
+        // FIX 1: Safely handle both wrapped and unwrap array response payloads
+        const rawData = response?.data || response;
+        const cleanArray = Array.isArray(rawData) ? rawData : [];
+
+        // FIX 2: Safeguard status evaluation string checks against null values 
+        const activeListings = cleanArray
+          .filter((p: any) => (p.status?.toLowerCase() || "") === "active")
+          .slice(0, 6);
+          
+        // FIX 3: Instantly map properties using the backend-generated signed_url accessor
+        // This removes the slow network signature generation sequence entirely
+        const mappedListings = activeListings.map((property: any) => {
+          const fallbackUrl = "https://images.pexels.com/photos/2587054/pexels-photo-2587054.jpeg?auto=compress&cs=tinysrgb&w=600";
+          
+          if (!property.images || property.images.length === 0) {
+            return { ...property, _signedMainImage: fallbackUrl };
+          }
+          
+          const firstImage = property.images[0];
+          const signedUrl = firstImage.signed_url || firstImage.s3_path || fallbackUrl;
+          
+          return { ...property, _signedMainImage: signedUrl };
+        });
 
         if (isMounted) {
-          setProperties(signedListings);
+          setProperties(mappedListings);
         }
       } catch (error) {
         console.error("Failed to fetch public listings safely:", error);
         if (isMounted) {
-          setProperties([]); // Gracefully transition to fallback empty view instead of re-triggering loader
+          setProperties([]); 
         }
       } finally {
         if (isMounted) {
@@ -349,7 +347,7 @@ export const LandingPage: React.FC = () => {
             <div className="w-20 h-0.5 bg-[#D4AF37] mt-5" />
           </div>
           <button
-            onClick={() => navigate("/client/properties")}
+            onClick={() => navigate("/properties")}
             className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-[#141414] hover:text-[#D4AF37] transition-all duration-300 group"
           >
             View All <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
@@ -376,65 +374,68 @@ export const LandingPage: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {properties.map((property, index) => {
-              const mainImage = (property as any)._signedMainImage;
-              
-              return (
-                <div
-                  key={property.id}
-                  onClick={() => navigate(`/properties/${property.id}`)} // Fixed dangerous double slash destination mapping block
-                  className="group cursor-pointer flex flex-col bg-white border border-gray-100 rounded-2xl overflow-hidden hover:border-[#D4AF37] hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 animate-slide-up"
-                  style={{ animationDelay: `${index * 100}ms` }}
-                >
-                  <div className="aspect-[4/3] overflow-hidden relative bg-gray-100">
-                    <div className="absolute top-4 left-4 bg-[#141414] text-[#D4AF37] px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest z-10 rounded">
-                      Featured
+            const mainImage = (property as any)._signedMainImage;
+            
+            return (
+              <div
+                key={property.id}
+                onClick={() => navigate(`/properties/${property.id}`)}
+                className="cursor-pointer group flex flex-col bg-white border border-gray-100 rounded-2xl overflow-hidden hover:border-[#D4AF37] hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 animate-slide-up"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                <div className="aspect-[4/3] overflow-hidden relative bg-gray-100">
+                  {/* Flat Minimalist Label indicator - No borders or glowy attributes */}
+                  <div className="absolute top-4 left-4 bg-[#141414] text-[#D4AF37] px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest z-10 rounded">
+                    Featured
+                  </div>
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-500 z-10" />
+                  <img
+                    src={mainImage}
+                    alt={property.title}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-out"
+                  />
+                </div>
+
+                <div className="p-6 flex-1 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-2xl font-bold text-[#141414]">
+                        {formatCurrency(Number(property.price))}
+                      </p>
+                      {/* Clean, simple text styling applied here - no badge layouts */}
+                      <div className="flex items-center gap-1 text-xs text-[#D4AF37] font-semibold uppercase tracking-wider">
+                        <Star size={12} fill="#D4AF37" />
+                        <span>Premium</span>
+                      </div>
                     </div>
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-500 z-10" />
-                    <img
-                      src={mainImage}
-                      alt={property.title}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-out"
-                    />
+                    <h4 className="font-bold text-base text-gray-800 line-clamp-1">
+                      {property.title}
+                    </h4>
+                    <p className="text-xs text-gray-500 mt-2 truncate flex items-center gap-1">
+                      <MapPin size={12} className="text-[#D4AF37] shrink-0" />
+                      {property.location || "Location Unspecified"}
+                    </p>
                   </div>
 
-                  <div className="p-6 flex-1 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-2xl font-bold text-[#141414]">
-                          {formatCurrency(Number(property.price))}
-                        </p>
-                        <div className="flex items-center gap-1 text-xs text-[#D4AF37]">
-                          <Star size={12} fill="#D4AF37" />
-                          <span className="font-semibold">Premium</span>
-                        </div>
-                      </div>
-                      <h4 className="font-bold text-base text-gray-800 line-clamp-1">
-                        {property.title}
-                      </h4>
-                      <p className="text-xs text-gray-500 mt-2 truncate flex items-center gap-1">
-                        <MapPin size={12} className="text-[#D4AF37] shrink-0" />
-                        {property.location || "Location Unspecified"}
-                      </p>
+                  <div className="flex items-center gap-6 mt-6 pt-5 border-t border-gray-100 text-sm font-bold text-[#141414]">
+                    <div className="flex items-center gap-2">
+                      <Bed size={16} className="text-[#D4AF37]" />
+                      <span>{property.bedrooms ?? "-"} Beds</span>
                     </div>
-
-                    <div className="flex items-center gap-6 mt-6 pt-5 border-t border-gray-100 text-sm font-bold text-[#141414]">
-                      <div className="flex items-center gap-2">
-                        <Bed size={16} className="text-[#D4AF37]" />
-                        <span>{property.bedrooms ?? "-"} Beds</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Bath size={16} className="text-[#D4AF37]" />
-                        <span>{property.baths ?? "-"} Baths</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Maximize2 size={16} className="text-[#D4AF37]" />
-                        <span>{property.sqft ? property.sqft.toLocaleString() : "-"} sqft</span>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <Bath size={16} className="text-[#D4AF37]" />
+                      {/* Bound explicitly to server 'baths' property to match schema fallback values */}
+                      <span>{property.baths ?? "-"} Baths</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Maximize2 size={16} className="text-[#D4AF37]" />
+                      <span>{property.sqft ? property.sqft.toLocaleString() : "-"} sqft</span>
                     </div>
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            );
+          })}
           </div>
         )}
       </section>
