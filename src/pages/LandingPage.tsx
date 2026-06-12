@@ -22,6 +22,7 @@ import {
 import { formatCurrency } from "../lib/utils";
 import { propertyApi } from "../api/properties";
 import { Property } from "../types";
+import { supabase } from "../lib/supabase"; // FIX: Imported Supabase client
 
 // Premium hero background images for the slider - High-end real estate photography
 const heroImages = [
@@ -71,17 +72,16 @@ export const LandingPage: React.FC = () => {
       try {
         const response = await propertyApi.getAllPublic();
         
-        // FIX 1: Safely handle both wrapped and unwrap array response payloads
+        // Safely handle both wrapped and unwrap array response payloads
         const rawData = response?.data || response;
         const cleanArray = Array.isArray(rawData) ? rawData : [];
 
-        // FIX 2: Safeguard status evaluation string checks against null values 
+        // Safeguard status evaluation string checks against null values 
         const activeListings = cleanArray
           .filter((p: any) => (p.status?.toLowerCase() || "") === "active")
           .slice(0, 6);
           
-        // FIX 3: Instantly map properties using the backend-generated signed_url accessor
-        // This removes the slow network signature generation sequence entirely
+        // FIX: Safely resolve the Supabase signed URL or public bucket URL
         const mappedListings = activeListings.map((property: any) => {
           const fallbackUrl = "https://images.pexels.com/photos/2587054/pexels-photo-2587054.jpeg?auto=compress&cs=tinysrgb&w=600";
           
@@ -90,9 +90,21 @@ export const LandingPage: React.FC = () => {
           }
           
           const firstImage = property.images[0];
-          const signedUrl = firstImage.signed_url || firstImage.s3_path || fallbackUrl;
+          const rawUrl = firstImage.signed_url || firstImage.s3_path || firstImage.url;
           
-          return { ...property, _signedMainImage: signedUrl };
+          if (!rawUrl) {
+            return { ...property, _signedMainImage: fallbackUrl };
+          }
+
+          // 1. If the backend already provided a full HTTP link, use it directly
+          if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+            return { ...property, _signedMainImage: rawUrl };
+          }
+
+          // 2. Otherwise, dynamically generate the Supabase URL from the relative DB path
+          const { data } = supabase.storage.from('user-files').getPublicUrl(rawUrl);
+          
+          return { ...property, _signedMainImage: data.publicUrl || fallbackUrl };
         });
 
         if (isMounted) {
@@ -170,9 +182,9 @@ export const LandingPage: React.FC = () => {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchTerm.trim()) {
-      navigate(`/?search=${encodeURIComponent(searchTerm.trim())}`);
+      navigate(`/properties?search=${encodeURIComponent(searchTerm.trim())}`);
     } else {
-      navigate("/");
+      navigate("/properties");
     }
   };
 
@@ -222,7 +234,7 @@ export const LandingPage: React.FC = () => {
             <button
               key={index}
               onClick={() => goToSlide(index)}
-              className={`transition-all duration-300 rounded-full ${
+              className={`cursor-pointer transition-all duration-300 rounded-full ${
                 index === currentSlide
                   ? "w-8 h-2 bg-[#D4AF37]"
                   : "w-2 h-2 bg-white/50 hover:bg-white/80"
@@ -233,20 +245,20 @@ export const LandingPage: React.FC = () => {
 
         <button
           onClick={goToPrevSlide}
-          className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 z-30 bg-black/50 hover:bg-black/70 text-white p-2 md:p-3 rounded-full transition-all duration-300 hover:scale-110 backdrop-blur-sm"
+          className="cursor-pointer absolute left-4 md:left-8 top-1/2 -translate-y-1/2 z-30 bg-black/50 hover:bg-black/70 text-white p-2 md:p-3 rounded-full transition-all duration-300 hover:scale-110 backdrop-blur-sm"
         >
           <ChevronLeft size={20} />
         </button>
         <button
           onClick={goToNextSlide}
-          className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 z-30 bg-black/50 hover:bg-black/70 text-white p-2 md:p-3 rounded-full transition-all duration-300 hover:scale-110 backdrop-blur-sm"
+          className="cursor-pointer absolute right-4 md:right-8 top-1/2 -translate-y-1/2 z-30 bg-black/50 hover:bg-black/70 text-white p-2 md:p-3 rounded-full transition-all duration-300 hover:scale-110 backdrop-blur-sm"
         >
           <ChevronRight size={20} />
         </button>
 
         <button
           onClick={toggleAutoPlay}
-          className="absolute bottom-24 right-4 md:right-8 z-30 bg-black/50 hover:bg-black/70 text-white p-2 md:p-3 rounded-full transition-all duration-300 backdrop-blur-sm"
+          className="cursor-pointer absolute bottom-24 right-4 md:right-8 z-30 bg-black/50 hover:bg-black/70 text-white p-2 md:p-3 rounded-full transition-all duration-300 backdrop-blur-sm"
         >
           {isAutoPlaying ? <Pause size={16} /> : <Play size={16} />}
         </button>
@@ -270,21 +282,21 @@ export const LandingPage: React.FC = () => {
           </div>
 
           <nav className="hidden md:flex items-center gap-10 text-white text-sm font-medium">
-            <button onClick={() => navigate("/")} className="relative group py-2">
+            <button onClick={() => navigate("/properties")} className="cursor-pointer relative group py-2">
               <span className="hover:text-[#D4AF37] transition-colors duration-300">Buy</span>
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#D4AF37] transition-all duration-300 group-hover:w-full"></span>
             </button>
-            <button onClick={() => navigate("/")} className="relative group py-2">
+            <button onClick={() => navigate("/properties")} className="cursor-pointer relative group py-2">
               <span className="hover:text-[#D4AF37] transition-colors duration-300">Rent</span>
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#D4AF37] transition-all duration-300 group-hover:w-full"></span>
             </button>
-            <button onClick={() => navigate("/")} className="relative group py-2">
+            <button onClick={() => navigate("/properties")} className="cursor-pointer relative group py-2">
               <span className="hover:text-[#D4AF37] transition-colors duration-300">Developments</span>
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#D4AF37] transition-all duration-300 group-hover:w-full"></span>
             </button>
             <button
               onClick={() => navigate("/auth/login")}
-              className="bg-[#D4AF37] text-[#141414] px-7 py-2.5 font-bold uppercase tracking-wider text-xs hover:bg-white transition-all duration-300 hover:shadow-xl transform hover:-translate-y-0.5"
+              className="cursor-pointer bg-[#D4AF37] text-[#141414] px-7 py-2.5 font-bold uppercase tracking-wider text-xs hover:bg-white transition-all duration-300 hover:shadow-xl transform hover:-translate-y-0.5"
             >
               Get Started
             </button>
@@ -322,7 +334,7 @@ export const LandingPage: React.FC = () => {
             </div>
             <button
               type="submit"
-              className="bg-[#141414] text-[#D4AF37] px-12 py-4.5 font-bold uppercase tracking-wider text-sm hover:bg-[#222] transition-all duration-300 whitespace-nowrap flex items-center gap-2 justify-center group"
+              className="cursor-pointer bg-[#141414] text-[#D4AF37] px-12 py-4.5 font-bold uppercase tracking-wider text-sm hover:bg-[#222] transition-all duration-300 whitespace-nowrap flex items-center gap-2 justify-center group"
             >
               Search <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
             </button>
@@ -348,7 +360,7 @@ export const LandingPage: React.FC = () => {
           </div>
           <button
             onClick={() => navigate("/properties")}
-            className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-[#141414] hover:text-[#D4AF37] transition-all duration-300 group"
+            className="cursor-pointer flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-[#141414] hover:text-[#D4AF37] transition-all duration-300 group"
           >
             View All <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
           </button>
@@ -542,7 +554,7 @@ export const LandingPage: React.FC = () => {
                 <span>acquisitions@makao.co.ke</span>
               </div>
             </div>
-            <button className="mt-12 w-fit bg-[#D4AF37] text-[#141414] px-10 py-4 font-bold uppercase tracking-wider text-sm hover:bg-white transition-all duration-300 hover:shadow-2xl transform hover:-translate-y-0.5 rounded">
+            <button className="cursor-pointer mt-12 w-fit bg-[#D4AF37] text-[#141414] px-10 py-4 font-bold uppercase tracking-wider text-sm hover:bg-white transition-all duration-300 hover:shadow-2xl transform hover:-translate-y-0.5 rounded">
               Request Assessment
             </button>
           </div>

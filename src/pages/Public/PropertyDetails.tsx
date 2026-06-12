@@ -5,8 +5,8 @@ import {
   Check, Camera, Play, Loader2, ChevronRight 
 } from "lucide-react";
 import { cn } from "../../lib/utils";
-// Fallback to your configured Axios instance
 import { api } from "../../lib/api"; 
+import { supabase } from "../../lib/supabase"; // FIX: Imported Supabase client
 
 export const PublicPropertyDetails = () => {
   const { id } = useParams();
@@ -15,6 +15,23 @@ export const PublicPropertyDetails = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [property, setProperty] = useState<any>(null);
   const [activeMedia, setActiveMedia] = useState<string>("");
+
+  // FIX: Safely resolve the Supabase signed URL or public bucket URL
+  const resolveMediaSource = (media: any): string => {
+    if (!media) return "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=1200";
+    
+    const rawUrl = media.signed_url || media.s3_path || media.url;
+    if (!rawUrl) return "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=1200";
+
+    // 1. If the backend already provided a full HTTP link, use it directly
+    if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+      return rawUrl;
+    }
+
+    // 2. Otherwise, dynamically generate the Supabase URL from the relative DB path
+    const { data } = supabase.storage.from('user-files').getPublicUrl(rawUrl);
+    return data.publicUrl;
+  };
 
   // Fetch property data natively from your public endpoint
   useEffect(() => {
@@ -26,15 +43,15 @@ export const PublicPropertyDetails = () => {
         const data = response.data?.data || response.data;
         setProperty(data);
         
-        // Set initial gallery media
+        // Set initial gallery media using the secure resolver
         if (data?.images?.length > 0) {
-          setActiveMedia(data.images[0].url);
+          setActiveMedia(resolveMediaSource(data.images[0]));
         }
       } catch (error) {
         console.error("Failed to load property details:", error);
         // Load fallback mock data for UI visualization if API is unreachable
         setProperty(fallbackProperty);
-        setActiveMedia(fallbackProperty.images[0].url);
+        setActiveMedia(resolveMediaSource(fallbackProperty.images[0]));
       } finally {
         setIsLoading(false);
       }
@@ -59,7 +76,7 @@ export const PublicPropertyDetails = () => {
       
       {/* Public Minimal Header */}
       <header className="bg-white dark:bg-[#141414] border-b border-gray-300 dark:border-gray-800 sticky top-0 z-40">
-        <div className="mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link to="/properties" className="cursor-pointer flex items-center gap-2 group text-gray-500 dark:text-gray-400 hover:text-[#141414] dark:hover:text-white transition-colors">
             <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
             <span className="text-sm font-bold">Back to Listings</span>
@@ -71,14 +88,13 @@ export const PublicPropertyDetails = () => {
         </div>
       </header>
 
-      <main className="mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
         
         {/* Media Gallery Section */}
         <div className="bg-white dark:bg-[#141414] rounded-[1rem] border border-gray-300 dark:border-gray-800 overflow-hidden shadow-sm mb-8">
           <div className="flex flex-col lg:flex-row h-auto lg:h-[600px]">
             {/* Main Display Viewer */}
             <div className="flex-1 bg-gray-100 dark:bg-black relative">
-              {/* FIX: Add 'activeMedia &&' guarding before calling string prototype methods */}
               {activeMedia && (activeMedia.includes("video") || activeMedia.includes("mp4")) ? (
                 <div className="w-full h-full flex items-center justify-center bg-black text-white relative group">
                   <video src={activeMedia} controls className="w-full h-full object-cover" />
@@ -95,25 +111,28 @@ export const PublicPropertyDetails = () => {
             {/* Thumbnail Sidebar */}
             <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-gray-300 dark:border-gray-800 bg-white dark:bg-[#141414] p-4 overflow-y-auto flex flex-row lg:flex-col gap-3 custom-scrollbar">
               <h3 className="hidden lg:block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 px-1">Media Gallery</h3>
-              {property.images?.map((media: any, index: number) => (
-                <button
-                  key={index}
-                  onClick={() => setActiveMedia(media.url)}
-                  className={cn(
-                    "cursor-pointer relative w-24 lg:w-full h-20 shrink-0 rounded-xl overflow-hidden border-2 transition-all",
-                    activeMedia === media.url 
-                      ? "border-[#141414] dark:border-white" 
-                      : "border-transparent opacity-60 hover:opacity-100"
-                  )}
-                >
-                  <img src={media.url} alt={`Thumbnail ${index + 1}`} className="w-full h-full object-cover" />
-                  {media.type === "video" && (
-                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                      <Play size={16} className="text-white fill-white" />
-                    </div>
-                  )}
-                </button>
-              ))}
+              {property.images?.map((media: any, index: number) => {
+                const mediaSource = resolveMediaSource(media);
+                return (
+                  <button
+                    key={index}
+                    onClick={() => setActiveMedia(mediaSource)}
+                    className={cn(
+                      "cursor-pointer relative w-24 lg:w-full h-20 shrink-0 rounded-xl overflow-hidden border-2 transition-all",
+                      activeMedia === mediaSource 
+                        ? "border-[#141414] dark:border-white" 
+                        : "border-transparent opacity-60 hover:opacity-100"
+                    )}
+                  >
+                    <img src={mediaSource} alt={`Thumbnail ${index + 1}`} className="w-full h-full object-cover" />
+                    {media.type === "video" && (
+                      <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                        <Play size={16} className="text-white fill-white" />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -152,7 +171,8 @@ export const PublicPropertyDetails = () => {
               <div className="flex items-center gap-3 pr-6 border-r border-gray-300 dark:border-gray-800">
                 <Bath size={24} className="text-gray-400" />
                 <div>
-                  <p className="text-2xl font-bold text-[#141414] dark:text-white">{property.baths}</p>
+                  {/* FIX: Map directly to property.baths to align with the server payload */}
+                  <p className="text-2xl font-bold text-[#141414] dark:text-white">{property.baths ?? property.bathrooms ?? "-"}</p>
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Bathrooms</p>
                 </div>
               </div>
