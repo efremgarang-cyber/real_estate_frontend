@@ -11,8 +11,8 @@ const getBaseURL = (): string => {
 
 export const api = axios.create({
   baseURL: getBaseURL(),
-  timeout: 30000, // increased timeout for payment flows
-  withCredentials: false, // set to true only if using Sanctum cookies
+  timeout: 30000, 
+  withCredentials: false, 
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
@@ -27,28 +27,30 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Response Interceptor: Catch dead tokens globally
+// Response Interceptor: Catch dead tokens smartly
 api.interceptors.response.use(
   (response) => {
-    // If the request succeeds, just return the response
     return response;
   },
   (error) => {
-    // If Laravel throws a 401 Unauthorized, the token has expired or is invalid
     if (error.response && error.response.status === 401) {
       
-      // 1. Destroy the dead token
+      // 1. Destroy the dead token silently
       localStorage.removeItem('makao_token');
       localStorage.removeItem('makao_user');
       
-      // 2. Prevent infinite redirect loops if they are already on the login page
-      if (window.location.pathname !== '/login') {
-        // Optional: Dispatch a custom event to trigger a toast notification saying "Session Expired"
+      // 2. Check if the user is currently inside a protected portal
+      const currentPath = window.location.pathname;
+      const isProtectedArea = currentPath.startsWith('/agent') || currentPath.startsWith('/admin');
+
+      // 3. ONLY redirect to login if they are in a protected area
+      if (isProtectedArea) {
         window.dispatchEvent(new CustomEvent('session-expired'));
-        
-        // 3. Kick them to the login screen
-        window.location.href = '/login'; 
+        window.location.href = '/auth/login'; 
       }
+      
+      // If they are on the landing page ('/') or public properties page, 
+      // do nothing. Let them keep browsing as a guest.
     }
     
     return Promise.reject(error);
