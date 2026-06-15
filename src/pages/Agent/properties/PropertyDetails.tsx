@@ -1,10 +1,11 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/src/lib/supabase";
 import {
   ArrowLeft, MapPin, Bed, Bath, Maximize2, CheckCircle, Download, Loader2, Send, 
-  X, AlertCircle, Check, Info, Edit2, Save, Image as ImageIcon
+  X, AlertCircle, Check, Info, Edit2, Save, Image as ImageIcon, Play, Square, Check as CheckIcon,
+  Trash2, Upload
 } from "lucide-react";
 import { formatCurrency, cn } from "../../../lib/utils";
 import { propertyApi } from "../../../api/properties";
@@ -25,7 +26,7 @@ const Toast: React.FC<{ notification: ToastNotification; onClose: () => void }> 
   const colors = { success: "bg-green-50 border-green-200", error: "bg-red-50 border-red-200", warning: "bg-orange-50 border-orange-200", info: "bg-blue-50 border-blue-200" };
   
   return (
-    <div className={`fixed top-4 right-4 z-50 w-96 rounded-xl border shadow-lg ${colors[notification.type]} animate-in slide-in-from-top-2 duration-300`}>
+    <div className={`fixed top-4 right-4 z-[200] w-96 rounded-xl border shadow-lg ${colors[notification.type]} animate-in slide-in-from-top-2 duration-300`}>
       <div className="p-4">
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0">{icons[notification.type]}</div>
@@ -42,6 +43,19 @@ const Toast: React.FC<{ notification: ToastNotification; onClose: () => void }> 
   );
 };
 
+// Robust Media Resolver
+const resolveMediaSource = (media: any): string => {
+  if (!media) return "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=1200";
+  
+  const rawUrl = typeof media === 'string' ? media : (media.signed_url || media.s3_path || media.url);
+  if (!rawUrl) return "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=1200";
+
+  if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://') || rawUrl.startsWith('data:')) return rawUrl;
+
+  const { data } = supabase.storage.from('user-files').getPublicUrl(rawUrl);
+  return data.publicUrl;
+};
+
 export const PropertyDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -50,6 +64,7 @@ export const PropertyDetail: React.FC = () => {
 
   const [notifications, setNotifications] = useState<ToastNotification[]>([]);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [activeMedia, setActiveMedia] = useState<string>("");
   
   const [isEditing, setIsEditing] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -65,7 +80,7 @@ export const PropertyDetail: React.FC = () => {
   const [leadSuccess, setLeadSuccess] = useState(false);
 
   const addNotification = (type: ToastNotification['type'], title: string, message: string) => {
-    const notifId = Math.random().toString(36).substr(2, 9);
+    const notifId = Math.random().toString(36).substring(2, 9);
     setNotifications(prev => [...prev, { id: notifId, type, title, message }]);
   };
   const removeNotification = (notifId: string) => setNotifications(prev => prev.filter(n => n.id !== notifId));
@@ -94,48 +109,46 @@ export const PropertyDetail: React.FC = () => {
     queryFn: async () => {
       if (!id) return null;
       const response = await propertyApi.getById(id);
-
       let propertyData = response?.data || response;
-
-      if (Array.isArray(propertyData)) {
-        propertyData = propertyData[0];
-      }
+      if (Array.isArray(propertyData)) propertyData = propertyData[0];
 
       if (!propertyData || Object.keys(propertyData).length === 0) {
         throw new Error("Property payload is empty");
       }
 
-      const rawImages = propertyData.images || [];
-      const realImageUrls = Array.isArray(rawImages)
-        ? rawImages
-            .map((img: any) => typeof img === 'object' ? img.s3_path || img.url : img)
-            .filter(Boolean)
-        : [];
+      // Track raw paths for accurate deletion mapping
+      let rawImages: any = propertyData.images || [];
+      let mediaItems: { path: string, url: string, isMain: boolean }[] = [];
 
-      const processedUrls = realImageUrls.map((url: string) => {
-        if (url.startsWith('http://') || url.startsWith('https://')) {
-          return url;
+      if (Array.isArray(rawImages)) {
+        rawImages.forEach(p => mediaItems.push({ path: p, url: resolveMediaSource(p), isMain: false }));
+      } else if (rawImages !== null && typeof rawImages === 'object') {
+        if (rawImages.main) {
+          mediaItems.push({ path: rawImages.main, url: resolveMediaSource(rawImages.main), isMain: true });
         }
-        
-        const { data } = supabase.storage.from('user-files').getPublicUrl(url);
-        
-        return data.publicUrl;
-      });
+        if (Array.isArray(rawImages.interior)) {
+          rawImages.interior.forEach((p: string) => mediaItems.push({ path: p, url: resolveMediaSource(p), isMain: false }));
+        }
+        if (Array.isArray(rawImages.exterior)) {
+          rawImages.exterior.forEach((p: string) => mediaItems.push({ path: p, url: resolveMediaSource(p), isMain: false }));
+        }
+      }
 
-      const validUrls = processedUrls.filter(Boolean) as string[];
-      
-      const imagesToDisplay = validUrls.length > 0
-          ? validUrls
-          : ["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?q=80&w=1200"];
-
-      return { property: propertyData, signedImages: imagesToDisplay };
+      return { property: propertyData, mediaItems };
     },
     enabled: !!id,
     retry: 1
   });
 
   const property = cacheData?.property;
-  const signedImages = cacheData?.signedImages || [];
+  const mediaItems = cacheData?.mediaItems || [];
+  const signedImages = mediaItems.map(m => m.url);
+
+  useEffect(() => {
+    if (signedImages.length > 0 && !activeMedia) {
+      setActiveMedia(signedImages[0]);
+    }
+  }, [signedImages, activeMedia]);
 
   const handleEditToggle = () => {
     if (!isEditing && property) {
@@ -144,7 +157,7 @@ export const PropertyDetail: React.FC = () => {
         price: property.price?.toString() || "",
         location: property.location || "",
         bedrooms: property.bedrooms?.toString() || "",
-        baths: property.baths?.toString() || "",
+        baths: (property.baths)?.toString() || "",
         sqft: property.sqft?.toString() || "",
         description: property.description || "",
         status: property.status || "active"
@@ -153,13 +166,11 @@ export const PropertyDetail: React.FC = () => {
     setIsEditing(!isEditing);
   };
 
-  const handleCancelEdit = () => {
-    setIsEditing(false);
-  };
+  const handleCancelEdit = () => setIsEditing(false);
 
   const updateMutation = useMutation({
     mutationFn: async (updates: any) => {
-      if (!property) throw new Error("Property context is missing");
+      if (!property) throw new Error("Missing property");
       return propertyApi.update(property.id, updates);
     },
     onSuccess: () => {
@@ -173,26 +184,29 @@ export const PropertyDetail: React.FC = () => {
 
   const uploadImageMutation = useMutation({
     mutationFn: async (file: File) => {
-      if (!property) throw new Error("Property context is missing");
+      if (!property) throw new Error("Missing property");
       const s3Path = await vaultApi.executeSecureUpload(file, 'property_image');
       return propertyApi.attachImage(property.id, s3Path);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['property', id] });
-      addNotification('success', 'Image Uploaded', 'Imagery updated successfully.');
+      addNotification('success', 'Image Uploaded', 'New image added to gallery.');
       if (imageInputRef.current) imageInputRef.current.value = '';
     },
     onError: () => addNotification('error', 'Upload Failed', 'Failed to upload image.')
   });
 
-  const leadMutation = useMutation({
-    mutationFn: (leadData: any) => api.post('/leads', leadData),
-    onSuccess: () => {
-      setLeadSuccess(true);
-      addNotification('success', 'Offer Submitted!', 'Sent to pipeline.');
-      setCustomerName(""); setCustomerEmail(""); setCustomerPhone(""); setOfferAmount("");
+  const deleteImageMutation = useMutation({
+    mutationFn: async (s3Path: string) => {
+      if (!property) throw new Error("Missing property");
+      // Target direct backend deletion endpoint
+      return api.delete(`/v1/properties/${property.id}/images`, { data: { s3_path: s3Path } });
     },
-    onError: () => addNotification('error', 'Submission Failed', 'Check connection.')
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['property', id] });
+      addNotification('success', 'Image Deleted', 'Image removed from property.');
+    },
+    onError: () => addNotification('error', 'Deletion Failed', 'Failed to remove image.')
   });
 
   const handleSaveChanges = () => {
@@ -212,6 +226,19 @@ export const PropertyDetail: React.FC = () => {
     }
     uploadImageMutation.mutate(file);
   };
+
+  const leadMutation = useMutation({
+    mutationFn: (leadData: any) => api.post('/leads', leadData),
+    onSuccess: () => {
+      setLeadSuccess(true);
+      addNotification('success', 'Offer Submitted!', 'Sent to pipeline.');
+      setCustomerName(""); 
+      setCustomerEmail(""); 
+      setCustomerPhone(""); 
+      setOfferAmount("");
+    },
+    onError: () => addNotification('error', 'Submission Failed', 'Check connection.')
+  });
 
   const handleCheckoutSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -242,10 +269,11 @@ export const PropertyDetail: React.FC = () => {
 
   return (
     <div className="space-y-8 pb-12 font-sans" ref={brochureRef}>
-      <div className="fixed top-0 right-0 z-50 flex flex-col gap-2 p-4">
+      <div className="fixed top-0 right-0 z-[150] flex flex-col gap-2 p-4">
         {notifications.map(n => <Toast key={n.id} notification={n} onClose={() => removeNotification(n.id)} />)}
       </div>
       
+      {/* Top Action Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4" data-html2canvas-ignore>
         <button onClick={() => navigate(-1)} className="cursor-pointer flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-[#141414] transition-colors">
           <ArrowLeft size={16} /> Back to Listings
@@ -279,102 +307,222 @@ export const PropertyDetail: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="md:col-span-2 aspect-[21/9] bg-gray-100 rounded-[2rem] overflow-hidden relative group">
-          <img src={signedImages[0]} className="w-full h-full object-cover" alt={property.title || "Property Cover"} crossOrigin="anonymous" />
-          {isEditing && (
-            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              <input type="file" ref={imageInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
-              <button onClick={() => imageInputRef.current?.click()} disabled={uploadImageMutation.isPending} className="cursor-pointer flex items-center gap-2 px-6 py-3 bg-white text-[#141414] rounded-xl font-bold shadow-lg hover:scale-105 transition-transform">
-                {uploadImageMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : <ImageIcon size={18} />} Change Main Image
-              </button>
+      {/* Main Display Viewer (Hidden in Edit Mode for cleaner flow) */}
+      {!isEditing && (
+        <div className="bg-white rounded-[1rem] border border-gray-200 overflow-hidden shadow-sm">
+          <div className="flex flex-col lg:flex-row h-auto lg:h-[600px]">
+            <div className="flex-1 bg-gray-100 relative group">
+              {activeMedia && (activeMedia.includes("video") || activeMedia.includes("mp4")) ? (
+                <div className="w-full h-full flex items-center justify-center bg-black text-white relative">
+                  <video src={activeMedia} controls className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <img src={activeMedia || signedImages[0]} alt="Property View" className="w-full h-full object-cover" crossOrigin="anonymous" />
+              )}
             </div>
-          )}
+            <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-gray-200 bg-white p-4 overflow-y-auto flex flex-row lg:flex-col gap-3 custom-scrollbar" data-html2canvas-ignore>
+              <h3 className="hidden lg:block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Media Gallery</h3>
+              {signedImages.map((mediaSource, index) => (
+                <button
+                  key={index}
+                  onClick={() => setActiveMedia(mediaSource)}
+                  className={cn("cursor-pointer relative w-24 lg:w-full h-20 shrink-0 rounded-xl overflow-hidden border-2 transition-all", activeMedia === mediaSource ? "border-[#141414]" : "border-transparent opacity-60 hover:opacity-100")}
+                >
+                  <img src={mediaSource} alt={`Thumbnail ${index + 1}`} className="w-full h-full object-cover" />
+                  {(mediaSource.includes("video") || mediaSource.includes("mp4")) && (
+                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                      <Play size={16} className="text-white fill-white" />
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
           <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm space-y-6">
             {isEditing ? (
-              <div className="space-y-6">
-                <div>
-                  <label htmlFor="title" className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Property Title</label>
-                  <input id="title" type="text" value={editForm.title} onChange={e => setEditForm({...editForm, title: e.target.value})} className="w-full text-2xl font-bold border-b border-gray-200 focus:outline-none pb-2 text-[#141414]" placeholder="e.g. Modern Villa in Kitisuru" />
+              <div className="space-y-8" data-html2canvas-ignore>
+                <div className="space-y-6 pb-8 border-b border-gray-100">
+                  <div>
+                    <label htmlFor="title" className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Property Title</label>
+                    <input id="title" type="text" value={editForm.title} onChange={e => setEditForm({...editForm, title: e.target.value})} className="w-full text-2xl font-bold border-b border-gray-200 focus:outline-none pb-2 text-[#141414]" placeholder="e.g. Modern Villa in Kitisuru" />
+                  </div>
+
+                  <div>
+                    <label htmlFor="location" className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Location</label>
+                    <input id="location" type="text" value={editForm.location} onChange={e => setEditForm({...editForm, location: e.target.value})} className="w-full text-gray-700 border-b border-gray-200 focus:outline-none pb-2" placeholder="e.g. Kitisuru, Nairobi" />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label htmlFor="bedrooms" className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Bedrooms</label>
+                      <input id="bedrooms" type="number" value={editForm.bedrooms} onChange={e => setEditForm({...editForm, bedrooms: e.target.value})} placeholder="0" className="w-full border border-gray-200 text-[#141414] rounded-lg p-2 focus:ring-1 focus:ring-[#141414] focus:outline-none" />
+                    </div>
+                    <div>
+                      <label htmlFor="baths" className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Bathrooms</label>
+                      <input id="baths" type="number" value={editForm.baths} onChange={e => setEditForm({...editForm, baths: e.target.value})} placeholder="0" className="w-full border border-gray-200 text-[#141414] rounded-lg p-2 focus:ring-1 focus:ring-[#141414] focus:outline-none" />
+                    </div>
+                    <div>
+                      <label htmlFor="sqft" className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Square Footage</label>
+                      <input id="sqft" type="number" value={editForm.sqft} onChange={e => setEditForm({...editForm, sqft: e.target.value})} placeholder="0" className="w-full border border-gray-200 text-[#141414] rounded-lg p-2 focus:ring-1 focus:ring-[#141414] focus:outline-none" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="description" className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Property Description</label>
+                    <textarea id="description" value={editForm.description} onChange={e => setEditForm({...editForm, description: e.target.value})} rows={5} className="w-full border border-gray-200 text-[#141414] rounded-lg p-4 focus:ring-1 focus:ring-[#141414] focus:outline-none custom-scrollbar" placeholder="Describe the property's key features, neighborhood, etc."></textarea>
+                  </div>
                 </div>
 
+                {/* Media Manager Block */}
                 <div>
-                  <label htmlFor="location" className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Location</label>
-                  <input id="location" type="text" value={editForm.location} onChange={e => setEditForm({...editForm, location: e.target.value})} className="w-full text-gray-700 border-b border-gray-200 focus:outline-none pb-2" placeholder="e.g. Kitisuru, Nairobi" />
-                </div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-bold text-[#141414]">Manage Media Gallery</h3>
+                    <input type="file" ref={imageInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
+                    <button 
+                      type="button" 
+                      onClick={() => imageInputRef.current?.click()} 
+                      disabled={uploadImageMutation.isPending}
+                      className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-gray-100 text-[#141414] rounded-xl text-xs font-bold hover:bg-gray-200 transition-colors disabled:opacity-50"
+                    >
+                      {uploadImageMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Add New Image
+                    </button>
+                  </div>
 
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label htmlFor="bedrooms" className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Bedrooms</label>
-                    <input id="bedrooms" type="number" value={editForm.bedrooms} onChange={e => setEditForm({...editForm, bedrooms: e.target.value})} placeholder="0" className="w-full border border-gray-200 text-[#141414] rounded-lg p-2 focus:ring-1 focus:ring-[#141414] focus:outline-none" />
-                  </div>
-                  <div>
-                    <label htmlFor="baths" className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Bathrooms</label>
-                    <input id="baths" type="number" value={editForm.baths} onChange={e => setEditForm({...editForm, baths: e.target.value})} placeholder="0" className="w-full border border-gray-200 text-[#141414] rounded-lg p-2 focus:ring-1 focus:ring-[#141414] focus:outline-none" />
-                  </div>
-                  <div>
-                    <label htmlFor="sqft" className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Square Footage</label>
-                    <input id="sqft" type="number" value={editForm.sqft} onChange={e => setEditForm({...editForm, sqft: e.target.value})} placeholder="0" className="w-full border border-gray-200 text-[#141414] rounded-lg p-2 focus:ring-1 focus:ring-[#141414] focus:outline-none" />
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="description" className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Property Description</label>
-                  <textarea id="description" value={editForm.description} onChange={e => setEditForm({...editForm, description: e.target.value})} rows={5} className="w-full border border-gray-200 text-[#141414] rounded-lg p-4 focus:ring-1 focus:ring-[#141414] focus:outline-none" placeholder="Describe the property's key features, neighborhood, etc."></textarea>
+                  {mediaItems.length === 0 ? (
+                    <div className="p-8 border-2 border-dashed border-gray-200 rounded-xl text-center">
+                      <p className="text-sm font-medium text-gray-400">No images attached to this property.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {mediaItems.map((item, index) => (
+                        <div key={index} className="relative aspect-square rounded-xl overflow-hidden border border-gray-200 group">
+                          <img src={item.url} alt={`Gallery Asset ${index + 1}`} className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                            {item.isMain && <span className="px-2 py-1 bg-[#141414] text-white text-[10px] font-bold rounded-lg uppercase tracking-wider">Main Cover</span>}
+                            <button 
+                              type="button"
+                              onClick={() => deleteImageMutation.mutate(item.path)}
+                              disabled={deleteImageMutation.isPending}
+                              className="cursor-pointer p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-transform hover:scale-110 disabled:opacity-50"
+                              title="Delete Image"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
               <>
                 <div>
-                  <h1 className="text-3xl font-black text-[#141414] mb-2">{property.title || "Untitled Property"}</h1>
-                  <p className="text-gray-500 flex items-center gap-2"><MapPin size={16} /> {property.location || "Location not specified"}</p>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="px-3 py-1 bg-gray-100 text-[#141414] text-[10px] font-bold uppercase tracking-widest rounded-full">
+                      {"Listing"}
+                    </span>
+                    <span className={cn("px-3 py-1 border text-[10px] font-bold uppercase tracking-widest rounded-full", property.status === 'Active' ? "border-green-200 text-green-600 bg-green-50" : "border-gray-200 text-gray-500 bg-gray-50")}>
+                      {property.status || "Active"}
+                    </span>
+                  </div>
+                  <h1 className="text-3xl sm:text-4xl font-black text-[#141414] leading-tight mb-2">
+                    {property.title || "Untitled Property"}
+                  </h1>
+                  <p className="text-gray-500 flex items-center gap-2 font-medium">
+                    <MapPin size={18} /> {property.location || "Location not specified"}
+                  </p>
                 </div>
-                <div className="flex gap-6 py-6 border-y border-gray-100">
-                  <div className="flex items-center gap-2"><Bed className="text-gray-400" /> <span className="font-bold text-[#141414]">{property.bedrooms || "-"} Beds</span></div>
-                  <div className="flex items-center gap-2"><Bath className="text-gray-400" /> <span className="font-bold text-[#141414]">{property.baths || "-"} Baths</span></div>
-                  <div className="flex items-center gap-2"><Maximize2 className="text-gray-400" /> <span className="font-bold text-[#141414]">{property.sqft ? property.sqft.toLocaleString() : "-"} Sqft</span></div>
+
+                <div className="flex flex-wrap gap-4 py-6 border-y border-gray-100">
+                  <div className="flex items-center gap-3 pr-6 border-r border-gray-100">
+                    <Bed size={24} className="text-gray-400" />
+                    <div>
+                      <p className="text-2xl font-bold text-[#141414]">{property.bedrooms || "-"}</p>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Bedrooms</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 pr-6 border-r border-gray-100">
+                    <Bath size={24} className="text-gray-400" />
+                    <div>
+                      <p className="text-2xl font-bold text-[#141414]">{property.baths ?? "-"}</p>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Bathrooms</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Square size={24} className="text-gray-400" />
+                    <div>
+                      <p className="text-2xl font-bold text-[#141414]">{property.sqft ? property.sqft.toLocaleString() : "-"}</p>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Square Feet</p>
+                    </div>
+                  </div>
                 </div>
+
                 <div>
-                  <h3 className="text-lg font-bold text-[#141414] mb-3">About this property</h3>
-                  <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">{property.description || "No description provided."}</p>
+                  <h3 className="text-lg font-bold text-[#141414] mb-4">Property Description</h3>
+                  <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">
+                    {property.description || "No description provided."}
+                  </p>
                 </div>
+
+                {property.amenities && property.amenities.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-bold text-[#141414] mb-4">Amenities & Features</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-6">
+                      {property.amenities.map((amenity: string, i: number) => (
+                        <div key={i} className="flex items-center gap-3">
+                          <div className="w-5 h-5 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0">
+                            <CheckIcon size={12} className="text-[#141414]" />
+                          </div>
+                          <span className="text-sm text-gray-600 font-medium">{amenity}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>
         </div>
 
+        {/* Right Sidebar Column */}
         <div className="space-y-6" data-html2canvas-ignore>
-          <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
-            <p className="text-sm text-gray-500 font-bold uppercase tracking-wider mb-2">Asking Price</p>
+          <div className="sticky top-24 bg-white p-6 sm:p-8 rounded-[2rem] border border-gray-100 shadow-[0_20px_50px_rgba(0,0,0,0.03)]">
+            <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-2">Listed Price</p>
             {isEditing ? (
-               <input type="number" value={editForm.price} onChange={e => setEditForm({...editForm, price: e.target.value})} className="w-full text-3xl font-black border-b border-gray-200 focus:outline-none pb-2 mb-6 text-[#141414]" placeholder="Enter price" />
+               <input type="number" value={editForm.price} onChange={e => setEditForm({...editForm, price: e.target.value})} className="w-full text-3xl font-black border-b border-gray-200 focus:outline-none pb-2 mb-8 text-[#141414]" placeholder="Enter price" />
             ) : (
-               <h2 className="text-4xl font-black text-[#141414] mb-6">{formatCurrency(Number(property.price || 0))}</h2>
+               <h2 className="text-4xl sm:text-5xl font-black text-[#141414] tracking-tight mb-8">
+                 {formatCurrency(Number(property.price || 0))}
+               </h2>
             )}
             
-            {!leadSuccess ? (
-              <form onSubmit={handleCheckoutSubmit} className="space-y-4">
-                <input required type="text" placeholder="Client Name" value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full p-3 border border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl bg-gray-50 focus:bg-white focus:ring-1 focus:ring-[#141414] focus:outline-none transition-all" />
-                <input required type="email" placeholder="Client Email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} className="w-full p-3 border border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl bg-gray-50 focus:bg-white focus:ring-1 focus:ring-[#141414] focus:outline-none transition-all" />
-                <input required type="tel" placeholder="Client Phone" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className="w-full p-3 border border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl bg-gray-50 focus:bg-white focus:ring-1 focus:ring-[#141414] focus:outline-none transition-all" />
-                <input type="number" placeholder="Offer Amount (Optional)" value={offerAmount} onChange={e => setOfferAmount(e.target.value)} className="w-full p-3 border border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-xl bg-gray-50 focus:bg-white focus:ring-1 focus:ring-[#141414] focus:outline-none transition-all" />
-                
-                <button type="submit" disabled={leadMutation.isPending} className="cursor-pointer w-full py-4 bg-[#141414] text-white rounded-xl font-bold hover:bg-black transition-colors disabled:opacity-70 flex items-center justify-center gap-2">
-                  {leadMutation.isPending ? <Loader2 className="animate-spin" /> : <Send size={18} />} Log Offer
-                </button>
-              </form>
-            ) : (
-              <div className="bg-green-50 text-green-700 p-6 rounded-xl flex flex-col items-center text-center gap-3 border border-green-200">
-                <CheckCircle size={32} />
-                <p className="font-bold">Offer Logged Successfully</p>
-                <button onClick={() => setLeadSuccess(false)} className="cursor-pointer text-sm font-semibold hover:underline mt-2">Submit another offer</button>
-              </div>
-            )}
+            <div className="pt-6 border-t border-gray-100">
+              <h4 className="text-sm font-bold text-[#141414] mb-4">Log Direct Offer / Lead</h4>
+              {!leadSuccess ? (
+                <form onSubmit={handleCheckoutSubmit} className="space-y-4">
+                  <input required type="text" placeholder="Client Name" value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full p-3 border border-gray-200 text-[#141414] placeholder:text-gray-400 rounded-xl bg-gray-50 focus:bg-white focus:ring-1 focus:ring-[#141414] focus:outline-none transition-all text-sm font-medium" />
+                  <input required type="email" placeholder="Client Email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} className="w-full p-3 border border-gray-200 text-[#141414] placeholder:text-gray-400 rounded-xl bg-gray-50 focus:bg-white focus:ring-1 focus:ring-[#141414] focus:outline-none transition-all text-sm font-medium" />
+                  <input required type="tel" placeholder="Client Phone" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className="w-full p-3 border border-gray-200 text-[#141414] placeholder:text-gray-400 rounded-xl bg-gray-50 focus:bg-white focus:ring-1 focus:ring-[#141414] focus:outline-none transition-all text-sm font-medium" />
+                  <input type="number" placeholder="Offer Amount (Optional)" value={offerAmount} onChange={e => setOfferAmount(e.target.value)} className="w-full p-3 border border-gray-200 text-[#141414] placeholder:text-gray-400 rounded-xl bg-gray-50 focus:bg-white focus:ring-1 focus:ring-[#141414] focus:outline-none transition-all text-sm font-medium" />
+                  
+                  <button type="submit" disabled={leadMutation.isPending} className="cursor-pointer w-full py-3.5 bg-[#141414] text-white rounded-xl font-bold hover:bg-black transition-colors disabled:opacity-70 flex items-center justify-center gap-2 shadow-sm mt-2">
+                    {leadMutation.isPending ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />} Log Offer to Kanban
+                  </button>
+                </form>
+              ) : (
+                <div className="bg-green-50 text-green-700 p-6 rounded-xl flex flex-col items-center text-center gap-3 border border-green-200">
+                  <CheckCircle size={32} />
+                  <p className="font-bold">Offer Logged Successfully</p>
+                  <button onClick={() => setLeadSuccess(false)} className="cursor-pointer text-sm font-semibold hover:underline mt-2">Submit another offer</button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

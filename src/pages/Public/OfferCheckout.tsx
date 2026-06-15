@@ -6,6 +6,23 @@ import {
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { api } from "../../lib/api";
+import { supabase } from "../../lib/supabase"; // <-- Imported Supabase
+
+// Safely resolve the Supabase signed URL or public bucket URL
+const resolveMediaSource = (media: any): string => {
+  const fallback = "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=600";
+  if (!media) return fallback;
+  
+  const rawUrl = typeof media === 'string' ? media : (media.signed_url || media.s3_path || media.url);
+  if (!rawUrl) return fallback;
+
+  if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://') || rawUrl.startsWith('data:')) {
+    return rawUrl;
+  }
+
+  const { data } = supabase.storage.from('user-files').getPublicUrl(rawUrl);
+  return data.publicUrl || fallback;
+};
 
 export const PublicOfferCheckout = () => {
   const { id } = useParams();
@@ -50,7 +67,6 @@ export const PublicOfferCheckout = () => {
     setNotification(null);
 
     try {
-      // Dispatches the offer as a raw lead to your system without requiring authentication
       await api.post(`/leads`, {
         property_id: id,
         source: "Public Offer Form",
@@ -63,10 +79,8 @@ export const PublicOfferCheckout = () => {
 
       setNotification({ type: "success", message: "Your offer has been submitted securely. An agent will contact you shortly." });
       
-      // Optional: Clear form on success
       setFormData({ name: "", email: "", phone: "", offer_amount: "", message: "" });
       
-      // Redirect back to property after a brief delay
       setTimeout(() => navigate(`/properties/${id}`), 4000);
       
     } catch (error: any) {
@@ -76,6 +90,20 @@ export const PublicOfferCheckout = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Helper to extract the best cover image from the property payload
+  const getCoverImage = () => {
+    if (!property?.images) return resolveMediaSource(null);
+    
+    let targetMedia = null;
+    if (typeof property.images === 'object' && !Array.isArray(property.images)) {
+      targetMedia = property.images.main || property.images.interior?.[0] || property.images.exterior?.[0];
+    } else if (Array.isArray(property.images)) {
+      targetMedia = property.images[0];
+    }
+    
+    return resolveMediaSource(targetMedia);
   };
 
   if (isLoading) {
@@ -94,7 +122,7 @@ export const PublicOfferCheckout = () => {
       
       {/* Minimal Header */}
       <header className="bg-white dark:bg-[#141414] border-b border-gray-200 dark:border-gray-800 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div className="mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link to={`/properties/${id}`} className="cursor-pointer flex items-center gap-2 group text-gray-500 dark:text-gray-400 hover:text-[#141414] dark:hover:text-white transition-colors">
             <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
             <span className="text-sm font-bold">Cancel Offer</span>
@@ -139,17 +167,17 @@ export const PublicOfferCheckout = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label htmlFor="name" className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5">Full Name</label>
-                    <input required id="name" type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full text-[#141414] dark:text-white px-4 py-3 bg-gray-50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-gray-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-gray-400 text-sm font-medium transition-colors" placeholder="e.g. John Doe" />
+                    <input required id="name" type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full text-[#141414] dark:text-white px-4 py-3 bg-gray-50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-gray-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#D4AF37] text-sm font-medium transition-colors" placeholder="e.g. John Doe" />
                   </div>
                   <div>
                     <label htmlFor="email" className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5">Email Address</label>
-                    <input required id="email" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full text-[#141414] dark:text-white px-4 py-3 bg-gray-50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-gray-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-gray-400 text-sm font-medium transition-colors" placeholder="john@example.com" />
+                    <input required id="email" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full text-[#141414] dark:text-white px-4 py-3 bg-gray-50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-gray-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#D4AF37] text-sm font-medium transition-colors" placeholder="john@example.com" />
                   </div>
                 </div>
 
                 <div>
                   <label htmlFor="phone" className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5">Phone Number</label>
-                  <input required id="phone" type="tel" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full text-[#141414] dark:text-white px-4 py-3 bg-gray-50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-gray-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-gray-400 text-sm font-medium transition-colors" placeholder="+254 700 000000" />
+                  <input required id="phone" type="tel" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full text-[#141414] dark:text-white px-4 py-3 bg-gray-50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-gray-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#D4AF37] text-sm font-medium transition-colors" placeholder="+254 700 000000" />
                 </div>
               </div>
 
@@ -158,12 +186,12 @@ export const PublicOfferCheckout = () => {
                 
                 <div>
                   <label htmlFor="offer" className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5">Your Offer Amount (KES)</label>
-                  <input required id="offer" type="number" min="0" step="100000" value={formData.offer_amount} onChange={e => setFormData({...formData, offer_amount: e.target.value})} className="w-full text-xl text-[#141414] dark:text-white px-4 py-3 bg-gray-50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-gray-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-gray-400 font-bold transition-colors" placeholder="e.g. 80000000" />
+                  <input required id="offer" type="number" min="0" step="100000" value={formData.offer_amount} onChange={e => setFormData({...formData, offer_amount: e.target.value})} className="w-full text-xl text-[#141414] dark:text-white px-4 py-3 bg-gray-50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-gray-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#D4AF37] font-bold transition-colors" placeholder="e.g. 80000000" />
                 </div>
 
                 <div>
                   <label htmlFor="message" className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5">Message / Terms (Optional)</label>
-                  <textarea id="message" rows={4} value={formData.message} onChange={e => setFormData({...formData, message: e.target.value})} className="w-full text-[#141414] dark:text-white px-4 py-3 bg-gray-50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-gray-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-gray-400 text-sm font-medium transition-colors resize-none" placeholder="Include any contingencies, preferred closing dates, or specific terms here." />
+                  <textarea id="message" rows={4} value={formData.message} onChange={e => setFormData({...formData, message: e.target.value})} className="w-full text-[#141414] dark:text-white px-4 py-3 bg-gray-50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-gray-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#D4AF37] text-sm font-medium transition-colors resize-none custom-scrollbar" placeholder="Include any contingencies, preferred closing dates, or specific terms here." />
                 </div>
               </div>
 
@@ -199,7 +227,8 @@ export const PublicOfferCheckout = () => {
               
               <div className="bg-white dark:bg-[#141414] rounded-3xl border border-gray-200 dark:border-gray-800 overflow-hidden shadow-sm">
                 <div className="h-48 bg-gray-100 dark:bg-black relative">
-                  <img src={property.images?.[0]?.url || "/placeholder-house.jpg"} alt="Property" className="w-full h-full object-cover" />
+                  {/* Now mapping cleanly via getCoverImage() */}
+                  <img src={getCoverImage()} alt="Property" className="w-full h-full object-cover" />
                   <div className="absolute top-4 left-4">
                     <span className="px-3 py-1 bg-[#141414]/80 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-widest rounded-full">
                       Target Property
@@ -218,7 +247,7 @@ export const PublicOfferCheckout = () => {
 
                   <div className="pt-4 border-t border-gray-100 dark:border-gray-900">
                     <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">Listed Price</p>
-                    <p className="text-2xl font-black text-[#141414] dark:text-white tracking-tight">
+                    <p className="text-2xl font-black text-[#D4AF37] tracking-tight">
                       {new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(property.price)}
                     </p>
                   </div>
@@ -258,7 +287,8 @@ const fallbackProperty = {
   title: "Modern Architectural Villa in Runda",
   price: 85000000,
   address: "123 Runda Estate, Nairobi, Kenya",
-  images: [
-    { url: "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=600", type: "image" }
-  ]
+  // Updated mock to match new structures
+  images: {
+    main: "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=600"
+  }
 };

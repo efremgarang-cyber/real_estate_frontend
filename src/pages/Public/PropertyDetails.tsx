@@ -2,11 +2,11 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { 
   ArrowLeft, MapPin, BedDouble, Bath, Square, 
-  Check, Camera, Play, Loader2, ChevronRight 
+  Check, Camera, Play, Loader2, ChevronRight, Share2 
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { api } from "../../lib/api"; 
-import { supabase } from "../../lib/supabase"; // FIX: Imported Supabase client
+import { supabase } from "../../lib/supabase"; 
 
 export const PublicPropertyDetails = () => {
   const { id } = useParams();
@@ -14,57 +14,76 @@ export const PublicPropertyDetails = () => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [property, setProperty] = useState<any>(null);
+  const [similarProperties, setSimilarProperties] = useState<any[]>([]);
   const [activeMedia, setActiveMedia] = useState<string>("");
+  const [galleryImages, setGalleryImages] = useState<string[]>([]);
 
-  // FIX: Safely resolve the Supabase signed URL or public bucket URL
+  // Safely resolve the Supabase signed URL or public bucket URL
   const resolveMediaSource = (media: any): string => {
     if (!media) return "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=1200";
-    
-    const rawUrl = media.signed_url || media.s3_path || media.url;
+    const rawUrl = typeof media === 'string' ? media : (media.signed_url || media.s3_path || media.url);
     if (!rawUrl) return "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=1200";
-
-    // 1. If the backend already provided a full HTTP link, use it directly
-    if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
-      return rawUrl;
-    }
-
-    // 2. Otherwise, dynamically generate the Supabase URL from the relative DB path
+    if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://') || rawUrl.startsWith('data:')) return rawUrl;
     const { data } = supabase.storage.from('user-files').getPublicUrl(rawUrl);
     return data.publicUrl;
   };
 
-  // Fetch property data natively from your public endpoint
   useEffect(() => {
-    const fetchProperty = async () => {
+    const fetchPropertyData = async () => {
       try {
         setIsLoading(true);
-        // Using your public universal read route
+        // 1. Fetch main property
         const response = await api.get(`/properties/${id}`);
         const data = response.data?.data || response.data;
         setProperty(data);
         
-        // Set initial gallery media using the secure resolver
-        if (data?.images?.length > 0) {
-          setActiveMedia(resolveMediaSource(data.images[0]));
+        // Flatten images
+        let rawImages: any = data?.images || [];
+        let allImages: any[] = [];
+        if (Array.isArray(rawImages)) {
+          allImages = rawImages;
+        } else if (rawImages !== null && typeof rawImages === 'object') {
+          if (rawImages.main) allImages.push(rawImages.main);
+          if (Array.isArray(rawImages.interior)) allImages.push(...rawImages.interior);
+          if (Array.isArray(rawImages.exterior)) allImages.push(...rawImages.exterior);
         }
+
+        const processedUrls = allImages.map(resolveMediaSource).filter(Boolean);
+        const imagesToDisplay = processedUrls.length > 0 
+          ? processedUrls 
+          : ["https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=1200"];
+
+        setGalleryImages(imagesToDisplay);
+        setActiveMedia(imagesToDisplay[0]);
+
+        // 2. Fetch similar properties (using the general endpoint for now, ideally you'd pass a filter)
+        const allPropsRes = await api.get("/properties");
+        const allProps = allPropsRes.data?.data || allPropsRes.data;
+        // Filter out the current property and grab up to 4
+        setSimilarProperties((Array.isArray(allProps) ? allProps : fallbackSimilarProperties)
+          .filter(p => p.id !== id)
+          .slice(0, 4));
+
       } catch (error) {
         console.error("Failed to load property details:", error);
-        // Load fallback mock data for UI visualization if API is unreachable
         setProperty(fallbackProperty);
-        setActiveMedia(resolveMediaSource(fallbackProperty.images[0]));
+        setSimilarProperties(fallbackSimilarProperties);
+        const fallbackUrls = fallbackProperty.images.map(resolveMediaSource);
+        setGalleryImages(fallbackUrls);
+        setActiveMedia(fallbackUrls[0]);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchProperty();
+    fetchPropertyData();
   }, [id]);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-[#0A0A0A] flex flex-col items-center justify-center text-gray-500">
-        <Loader2 size={32} className="animate-spin mb-4" />
-        <p className="text-sm font-bold tracking-widest uppercase">Loading Property</p>
+      <div className="min-h-screen bg-white dark:bg-[#0A0A0A] flex flex-col items-center justify-center text-gray-500">
+        <Loader2 size={32} className="animate-spin mb-4 text-[#D4AF37]" />
+        <p className="text-sm font-bold tracking-widest uppercase">Loading Listing</p>
       </div>
     );
   }
@@ -72,189 +91,197 @@ export const PublicPropertyDetails = () => {
   if (!property) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#0A0A0A] font-sans pb-24 text-[#141414] dark:text-white">
+    <div className="min-h-screen bg-white dark:bg-[#0A0A0A] font-sans pb-24 text-[#141414] dark:text-white">
       
-      {/* Public Minimal Header */}
-      <header className="bg-white dark:bg-[#141414] border-b border-gray-300 dark:border-gray-800 sticky top-0 z-40">
+      {/* Header */}
+      <header className="bg-white/80 dark:bg-[#0A0A0A]/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-900 sticky top-0 z-40">
         <div className="mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link to="/properties" className="cursor-pointer flex items-center gap-2 group text-gray-500 dark:text-gray-400 hover:text-[#141414] dark:hover:text-white transition-colors">
+          <Link to="/properties" className="cursor-pointer flex items-center gap-2 group text-gray-500 dark:text-gray-400 hover:text-[#D4AF37] transition-colors">
             <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
-            <span className="text-sm font-bold">Back to Listings</span>
+            <span className="text-sm font-bold">Back</span>
           </Link>
-          <div className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2 cursor-pointer">
             <img src="/makao-icon-dark.svg" alt="Makao Logo" className="w-6 h-6 object-contain" />
             <h1 className="font-display text-lg font-bold text-[#141414] dark:text-white tracking-tight">MAKAO</h1>
-          </div>
+          </Link>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
-        
-        {/* Media Gallery Section */}
-        <div className="bg-white dark:bg-[#141414] rounded-[1rem] border border-gray-300 dark:border-gray-800 overflow-hidden shadow-sm mb-8">
-          <div className="flex flex-col lg:flex-row h-auto lg:h-[600px]">
-            {/* Main Display Viewer */}
-            <div className="flex-1 bg-gray-100 dark:bg-black relative">
+      {/* Main Product Layout (Plantitude Split Style) */}
+      <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 lg:mt-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 xl:gap-20">
+          
+          {/* LEFT COLUMN: Media Gallery */}
+          <div className="space-y-4">
+            {/* Main Viewer */}
+            <div className="aspect-[4/3] bg-gray-50 dark:bg-[#111] rounded-2xl overflow-hidden relative">
               {activeMedia && (activeMedia.includes("video") || activeMedia.includes("mp4")) ? (
-                <div className="w-full h-full flex items-center justify-center bg-black text-white relative group">
+                <div className="w-full h-full flex items-center justify-center bg-black text-white relative">
                   <video src={activeMedia} controls className="w-full h-full object-cover" />
                 </div>
               ) : (
                 <img 
-                  src={activeMedia || "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=1200"} 
+                  src={activeMedia} 
                   alt="Property View" 
                   className="w-full h-full object-cover" 
                 />
               )}
             </div>
 
-            {/* Thumbnail Sidebar */}
-            <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-gray-300 dark:border-gray-800 bg-white dark:bg-[#141414] p-4 overflow-y-auto flex flex-row lg:flex-col gap-3 custom-scrollbar">
-              <h3 className="hidden lg:block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 px-1">Media Gallery</h3>
-              {property.images?.map((media: any, index: number) => {
-                const mediaSource = resolveMediaSource(media);
-                return (
+            {/* Thumbnail Strip */}
+            {galleryImages.length > 1 && (
+              <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
+                {galleryImages.map((mediaSource: string, index: number) => (
                   <button
                     key={index}
                     onClick={() => setActiveMedia(mediaSource)}
                     className={cn(
-                      "cursor-pointer relative w-24 lg:w-full h-20 shrink-0 rounded-xl overflow-hidden border-2 transition-all",
+                      "cursor-pointer relative w-24 h-24 shrink-0 rounded-xl overflow-hidden border-2 transition-all",
                       activeMedia === mediaSource 
-                        ? "border-[#141414] dark:border-white" 
+                        ? "border-[#D4AF37]" 
                         : "border-transparent opacity-60 hover:opacity-100"
                     )}
                   >
                     <img src={mediaSource} alt={`Thumbnail ${index + 1}`} className="w-full h-full object-cover" />
-                    {media.type === "video" && (
+                    {(mediaSource.includes("video") || mediaSource.includes("mp4")) && (
                       <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
                         <Play size={16} className="text-white fill-white" />
                       </div>
                     )}
                   </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* Left Column: Property Details */}
-          <div className="lg:col-span-2 space-y-8">
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="px-3 py-1 bg-gray-100 dark:bg-[#2A2A2A] text-[#141414] dark:text-white text-[10px] font-bold uppercase tracking-widest rounded-full">
-                  {property.type || "For Sale"}
-                </span>
-                <span className="px-3 py-1 border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 text-[10px] font-bold uppercase tracking-widest rounded-full">
-                  {property.status || "Active"}
-                </span>
+                ))}
               </div>
-              <h1 className="text-3xl sm:text-4xl font-black text-[#141414] dark:text-white leading-tight">
+            )}
+          </div>
+
+          {/* RIGHT COLUMN: Property Info & Actions */}
+          <div className="flex flex-col">
+            {/* Title & Pricing Block */}
+            <div className="border-b border-gray-100 dark:border-gray-900 pb-6 mb-6">
+              <p className="text-[#D4AF37] text-xs font-bold tracking-widest uppercase mb-2">
+                {property.location}, {property.city}
+              </p>
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#141414] dark:text-white leading-tight mb-4 tracking-tight">
                 {property.title}
               </h1>
-              <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mt-4">
-                <MapPin size={18} />
-                <span className="text-sm font-medium">{property.address || property.location}</span>
+              <div className="flex items-center gap-4">
+                <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
+                  {new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(property.price)}
+                </h2>
+                {property.status === 'active' && (
+                  <span className="px-2.5 py-1 bg-green-50 dark:bg-green-500/10 text-green-600 border border-green-200 dark:border-green-500/20 text-[10px] font-bold uppercase tracking-widest rounded-md">
+                    In Stock
+                  </span>
+                )}
               </div>
             </div>
 
-            {/* Key Metrics */}
-            <div className="flex flex-wrap gap-4 py-6 border-y border-gray-300 dark:border-gray-800">
-              <div className="flex items-center gap-3 pr-6 border-r border-gray-300 dark:border-gray-800">
-                <BedDouble size={24} className="text-gray-400" />
-                <div>
-                  <p className="text-2xl font-bold text-[#141414] dark:text-white">{property.bedrooms}</p>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Bedrooms</p>
-                </div>
+            {/* Architectural Specs */}
+            <div className="grid grid-cols-3 gap-4 mb-8">
+              <div className="bg-gray-50 dark:bg-[#111] p-4 rounded-xl flex flex-col items-center justify-center text-center">
+                <BedDouble size={20} className="text-[#D4AF37] mb-2" />
+                <span className="text-lg font-bold text-[#141414] dark:text-white">{property.bedrooms || "-"}</span>
+                <span className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Beds</span>
               </div>
-              <div className="flex items-center gap-3 pr-6 border-r border-gray-300 dark:border-gray-800">
-                <Bath size={24} className="text-gray-400" />
-                <div>
-                  {/* FIX: Map directly to property.baths to align with the server payload */}
-                  <p className="text-2xl font-bold text-[#141414] dark:text-white">{property.baths ?? property.bathrooms ?? "-"}</p>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Bathrooms</p>
-                </div>
+              <div className="bg-gray-50 dark:bg-[#111] p-4 rounded-xl flex flex-col items-center justify-center text-center">
+                <Bath size={20} className="text-[#D4AF37] mb-2" />
+                <span className="text-lg font-bold text-[#141414] dark:text-white">{property.baths ?? property.bathrooms ?? "-"}</span>
+                <span className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Baths</span>
               </div>
-              <div className="flex items-center gap-3">
-                <Square size={24} className="text-gray-400" />
-                <div>
-                  <p className="text-2xl font-bold text-[#141414] dark:text-white">{property.sqft?.toLocaleString() || "N/A"}</p>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Square Feet</p>
-                </div>
+              <div className="bg-gray-50 dark:bg-[#111] p-4 rounded-xl flex flex-col items-center justify-center text-center">
+                <Square size={20} className="text-[#D4AF37] mb-2" />
+                <span className="text-lg font-bold text-[#141414] dark:text-white">{property.sqft?.toLocaleString() || "-"}</span>
+                <span className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Sqft</span>
               </div>
             </div>
 
-            {/* Description */}
-            <div>
-              <h3 className="text-lg font-bold text-[#141414] dark:text-white mb-4">Property Description</h3>
+            {/* Action Buttons */}
+            <div className="space-y-3 mb-8">
+              <button 
+                onClick={() => navigate(`/properties/${id}/offer`)}
+                className="cursor-pointer w-full bg-[#141414] hover:bg-black dark:bg-white dark:hover:bg-gray-100 text-white dark:text-[#141414] flex items-center justify-center gap-2 py-4 rounded-xl font-bold uppercase tracking-widest text-xs transition-all"
+              >
+                <span>Make an Offer</span>
+              </button>
+              <div className="flex gap-3">
+                <button className="cursor-pointer flex-1 bg-white dark:bg-[#141414] border-2 border-gray-200 dark:border-gray-800 text-[#141414] dark:text-white flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold uppercase tracking-widest text-xs hover:border-[#D4AF37] hover:text-[#D4AF37] transition-colors">
+                  <Camera size={16} /> Request Viewing
+                </button>
+                <button className="cursor-pointer w-14 flex items-center justify-center bg-gray-50 dark:bg-[#111] rounded-xl hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors">
+                  <Share2 size={16} className="text-[#141414] dark:text-white" />
+                </button>
+              </div>
+            </div>
+
+            {/* Description Accordion (Expanded by default) */}
+            <div className="border-t border-gray-100 dark:border-gray-900 pt-6">
+              <h3 className="text-xs font-bold text-[#141414] dark:text-white uppercase tracking-widest mb-4">Description</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed whitespace-pre-line">
                 {property.description}
               </p>
             </div>
 
-            {/* Amenities Grid */}
+            {/* Amenities Section */}
             {property.amenities && property.amenities.length > 0 && (
-              <div>
-                <h3 className="text-lg font-bold text-[#141414] dark:text-white mb-4">Amenities & Features</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-6">
+              <div className="border-t border-gray-100 dark:border-gray-900 pt-6 mt-6">
+                <h3 className="text-xs font-bold text-[#141414] dark:text-white uppercase tracking-widest mb-4">Features</h3>
+                <ul className="grid grid-cols-2 gap-3">
                   {property.amenities.map((amenity: string, i: number) => (
-                    <div key={i} className="flex items-center gap-3">
-                      <div className="w-5 h-5 rounded-full bg-gray-100 dark:bg-[#1A1A1A] flex items-center justify-center shrink-0">
-                        <Check size={12} className="text-[#141414] dark:text-white" />
-                      </div>
-                      <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">{amenity}</span>
-                    </div>
+                    <li key={i} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />
+                      {amenity}
+                    </li>
                   ))}
-                </div>
+                </ul>
               </div>
             )}
+            
+            {/* Agency Source */}
+            <div className="mt-auto pt-8 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-[#222] flex items-center justify-center text-xs font-bold text-[#141414] dark:text-white">
+                {property.agency?.name?.[0] || "A"}
+              </div>
+              <p className="text-xs text-gray-500 uppercase tracking-widest font-semibold">
+                Listed by <span className="text-[#141414] dark:text-white">{property.agency?.name || "Makao Partners"}</span>
+              </p>
+            </div>
+
           </div>
+        </div>
 
-          {/* Right Column: Sticky Action Card */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-24 bg-white dark:bg-[#141414] border border-gray-300 dark:border-gray-800 rounded-3xl p-6 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.03)]">
-              <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Listed Price</p>
-              <h2 className="text-4xl sm:text-5xl font-black text-[#141414] dark:text-white tracking-tight mb-8">
-                {new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(property.price)}
-              </h2>
-
-              <div className="space-y-4">
-                <button 
-                  type="button"
-                  onClick={() => navigate(`/properties/${id}/offer`)}
-                  className="cursor-pointer w-full bg-[#141414] dark:bg-white text-white dark:text-[#141414] flex items-center justify-between px-6 py-4 rounded-xl font-bold transition-transform hover:scale-[1.02] active:scale-[0.98]"
+        {/* RELATED PRODUCTS / SIMILAR PROPERTIES SECTION */}
+        {similarProperties.length > 0 && (
+          <div className="mt-24 pt-16 border-t border-gray-100 dark:border-gray-900">
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="text-2xl font-black text-[#141414] dark:text-white tracking-tight">Similar Properties</h3>
+              <Link to="/properties" className="text-sm font-bold text-[#D4AF37] hover:underline uppercase tracking-widest hidden sm:block">View All</Link>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {similarProperties.map((simProp) => (
+                <div 
+                  key={simProp.id}
+                  onClick={() => navigate(`/properties/${simProp.id}`)}
+                  className="cursor-pointer group"
                 >
-                  <span>Make an Offer</span>
-                  <ChevronRight size={18} />
-                </button>
-
-                <button 
-                  type="button"
-                  className="cursor-pointer w-full bg-gray-50 dark:bg-black border border-gray-300 dark:border-gray-800 text-[#141414] dark:text-white flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold hover:bg-gray-100 dark:hover:bg-[#111111] transition-colors"
-                >
-                  <Camera size={18} />
-                  <span>Request Viewing</span>
-                </button>
-              </div>
-
-              <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-900">
-                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">Listing Agency</p>
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-gray-100 dark:bg-black rounded-full flex items-center justify-center font-bold text-[#141414] dark:text-white">
-                    {property.agency?.name?.[0] || "A"}
+                  <div className="aspect-[4/3] bg-gray-100 dark:bg-[#111] relative overflow-hidden rounded-xl mb-4">
+                    <img 
+                      src={resolveMediaSource(simProp.images?.main || (Array.isArray(simProp.images) ? simProp.images[0] : null))} 
+                      alt={simProp.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out"
+                    />
                   </div>
-                  <div>
-                    <p className="font-bold text-sm text-[#141414] dark:text-white">{property.agency?.name || "Makao Premium Partners"}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Verified Operator</p>
-                  </div>
+                  <h4 className="text-sm font-bold text-[#141414] dark:text-gray-100 line-clamp-1 group-hover:text-[#D4AF37] transition-colors uppercase tracking-wide">
+                    {simProp.title}
+                  </h4>
+                  <p className="text-sm font-black text-[#D4AF37] tracking-tight mt-1">
+                    {new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(simProp.price)}
+                  </p>
                 </div>
-              </div>
-
+              ))}
             </div>
           </div>
-
-        </div>
+        )}
       </main>
     </div>
   );
@@ -263,25 +290,39 @@ export const PublicPropertyDetails = () => {
 // --- MOCK FALLBACK DATA ---
 const fallbackProperty = {
   id: "prop-123",
-  title: "Modern Architectural Villa in Runda",
+  title: "Modern Architectural Villa",
   price: 85000000,
-  address: "123 Runda Estate, Nairobi, Kenya",
+  location: "Runda",
+  city: "Nairobi",
   type: "For Sale",
-  status: "Active",
+  status: "active",
   bedrooms: 5,
   bathrooms: 6,
   sqft: 6500,
   description: "Experience unparalleled luxury in this modern architectural masterpiece located in the heart of Runda. This property features floor-to-ceiling windows, a state-of-the-art smart home system, a private infinity pool, and an expansive manicured garden.\n\nDesigned for both grand entertaining and intimate family living, the open-concept layout flows seamlessly from the gourmet chef's kitchen to the sun-drenched living areas.",
   amenities: [
     "Smart Home Integration", "Infinity Pool", "Gourmet Kitchen", 
-    "Home Theater", "Staff Quarters", "24/7 Security", 
-    "Solar Heating", "Borehole Water"
+    "Home Theater", "Staff Quarters", "24/7 Security"
   ],
   images: [
-    { url: "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=1200", type: "image" },
-    { url: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80&w=1200", type: "image" },
-    { url: "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&q=80&w=1200", type: "image" },
-    { url: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=1200", type: "image" },
+    "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=1200",
+    "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80&w=1200",
+    "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&q=80&w=1200"
   ],
   agency: { name: "Elite Homes Kenya" }
 };
+
+const fallbackSimilarProperties = [
+  {
+    id: "prop-456",
+    title: "Minimalist Penthouse",
+    price: 45000000,
+    images: { main: "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&q=80&w=600" }
+  },
+  {
+    id: "prop-789",
+    title: "Serene Garden Estate",
+    price: 120000000,
+    images: { main: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=600" }
+  }
+];
