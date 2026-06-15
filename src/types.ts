@@ -124,6 +124,7 @@ export interface Property {
   baths: number;
   sqft: number;
   description: string | null;
+  amenities: string[];
   status: PropertyStatus;
   images?: PropertyImage[] | string[]; // Backed by relationship or direct array serialization
   expires_at: string | null;
@@ -210,43 +211,25 @@ export interface CreateLeadPayload {
 }
 
 export interface KycDocument {
-  // Primary Keys & Relationships
-  id: string | number;
-  agency_id: string | number;
-  uploaded_by?: string | number | null;
-  
-  // Polymorphic Relations
-  documentable_type: string;
-  documentable_id: string | number;
+  id: number;
+  type?: string;
+  document_type?: string;
+  status?: 'pending_review' | 'verified' | 'rejected' | string;
+  verification_status?: string;
+  s3_path?: string;
+  s3_private_path?: string;
+  documentable_id?: number | string;
+  userId?: number | string;
+  extracted_text?: string;
+  ml_data?: string | Record<string, any>;
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
 
-  // Document Details
-  document_type: 
-    | 'title_deed' 
-    | 'national_id' 
-    | 'national_id_front' 
-    | 'national_id_back' 
-    | 'passport' 
-    | 'kra_pin' 
-    | 'selfie_verification' 
-    | 'proof_of_address' 
-    | 'contract';
-  s3_private_path: string;
-  notes?: string | null;
-  verification_status: 'pending_review' | 'verified' | 'rejected';
-
-  // OCR & Machine Learning Data
-  extracted_text?: string | null;
-  ml_data?: Record<string, any> | null;
-
-  // Timestamps
-  created_at: string;
-  updated_at: string;
-
-  // ─── Frontend Mapped Properties (Injected by API Interceptors/Queries) ───
-  type?: string; 
-  status?: 'pending_review' | 'verified' | 'rejected';
-  userId?: string | number; // Often mapped from documentable_id or uploaded_by
-  signedUrl?: string; // Appended when generating secure viewing links
+  // AI Verification Fields
+  ai_verification_status: 'pending' | 'ai_verified' | 'ai_flagged';
+  ai_confidence_score: number | null;
+  ai_reasoning: string | null;
 }
 
 export interface GeneratePresignedUrlPayload {

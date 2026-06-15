@@ -206,14 +206,14 @@ export const VaultPage: React.FC = () => {
                     <td className="px-6 py-5 text-sm font-medium text-gray-700">
                       <div className="flex items-center gap-2">
                         <FileText size={16} className="text-gray-400" />
-                        <span className="capitalize">{doc.type.replace('_', ' ')}</span>
+                        <span className="capitalize">{doc.type?.replace('_', ' ')}</span>
                       </div>
                     </td>
                     <td className="px-6 py-5">
-                      <StatusText status={doc.status} />
+                      <StatusText status={doc.status || 'pending'} />
                     </td>
                     <td className="px-6 py-5 text-sm font-medium text-gray-500">
-                      {new Date(doc.updatedAt).toLocaleDateString()}
+                      {new Date(doc.updated_at as string).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-5 text-sm font-medium text-right">
                       <button 

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useLocation, Outlet } from "react-router-dom";
+import { useLocation, Outlet, Link } from "react-router-dom";
 import { BarChart3, Home, Users, ShieldCheck, Menu, Settings } from "lucide-react";
 import { useAuth } from "../../lib/AuthContext";
 import { motion, AnimatePresence } from "motion/react";
@@ -38,10 +38,10 @@ export const AgentLayout: React.FC = () => {
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         
         <header className="md:hidden flex items-center justify-between p-5 bg-white border-b border-gray-100 shadow-sm z-20">
-          <div className="flex items-center gap-2">
+          <Link to={"/"} className="pointer flex items-center gap-2">
             <img src="/makao-icon-dark.svg" alt="Makao Logo" className="w-6 h-6 object-contain" />
             <h1 className="font-display text-xl font-bold text-[#141414]">MAKAO</h1>
-          </div>
+          </Link>
           <button title="button"
             type="button"
             onClick={() => setMobileMenuOpen(true)}

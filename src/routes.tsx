@@ -71,8 +71,6 @@ export const appRoutes: RouteObject[] = [
               { path: "leads", element: <KanbanBoard /> },
               { path: "vault", element: <VaultPage /> },
               { path: "settings", element: <Settings key="agent-settings" /> },
-              
-              // 🚀 Your Integrated Feature Modules
               { path: "escrows", element: <EscrowPage /> },
               { path: "plans", element: <SubscriptionPage /> },
             ],
