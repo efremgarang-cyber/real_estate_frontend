@@ -18,6 +18,10 @@ export const api = axios.create({
     'Accept': 'application/json',
   },
 });
+export const sendMessage = async (message: string, sessionId: string) => {
+    const response = await api.post('/chat', { message, session_id: sessionId });
+    return response.data;
+};
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('makao_token');
