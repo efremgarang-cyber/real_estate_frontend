@@ -84,7 +84,7 @@ export const PublicListings = () => {
       
       {/* Premium Public Header Wrapper */}
       <header className="bg-white dark:bg-[#141414] border-b border-gray-300 dark:border-gray-800 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div className="mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link to={"/"} className="cursor-pointer flex items-center gap-2">
             <img src="/makao-icon-dark.svg" alt="Makao Logo" className="w-6 h-6 object-contain" />
             <span className="font-display text-lg font-bold tracking-tight">MAKAO</span>
@@ -96,14 +96,14 @@ export const PublicListings = () => {
       </header>
 
       {/* Hero Headline Deck */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-6">
+      <div className="mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-6">
         <h1 className="text-4xl sm:text-5xl font-black text-[#141414] dark:text-white tracking-tight leading-none">
           Explore Ecosystem Listings
         </h1>
       </div>
 
       {/* Control Utility Bar */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+      <main className="mx-auto px-4 sm:px-6 lg:px-8 mt-4">
         <div className="space-y-4 mb-8">
           <div className="flex flex-col sm:flex-row gap-3">
             {/* Search Input Box */}
