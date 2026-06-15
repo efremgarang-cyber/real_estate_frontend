@@ -76,7 +76,7 @@ export const PublicPropertyDetails = () => {
       
       {/* Public Minimal Header */}
       <header className="bg-white dark:bg-[#141414] border-b border-gray-300 dark:border-gray-800 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div className="mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link to="/properties" className="cursor-pointer flex items-center gap-2 group text-gray-500 dark:text-gray-400 hover:text-[#141414] dark:hover:text-white transition-colors">
             <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
             <span className="text-sm font-bold">Back to Listings</span>
