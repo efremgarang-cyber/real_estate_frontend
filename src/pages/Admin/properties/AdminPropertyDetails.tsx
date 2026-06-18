@@ -13,6 +13,7 @@ import { formatCurrency } from "../../../lib/utils";
 import { propertyApi } from "../../../api/properties";
 import { vaultApi } from "../../../api/vault";
 import { api } from "../../../lib/api";
+import { supabase } from "../../../lib/supabase";
 
 // Toast Notification Component
 interface ToastNotification { 
@@ -244,54 +245,45 @@ export const AdminPropertyDetails: React.FC = () => {
   });
   
   // Upload images mutation
-  const uploadImagesMutation = useMutation({
-    mutationFn: async (files: FileList) => {
-      if (!property) throw new Error("Property context is missing");
-      const uploadedUrls = [];
-      
-      for (const file of Array.from(files)) {
-        // Upload to S3 and get the URL/path
-        const s3Path = await vaultApi.executeSecureUpload(file, 'property_image');
-        
-        // Construct the full URL if needed, or use the path as is
-        // The backend expects a valid URL format
-        let imageUrl = s3Path;
-        
-        // If the path is not a full URL, construct one (adjust base URL as needed)
-        if (!s3Path.startsWith('http://') && !s3Path.startsWith('https://')) {
-          // Assuming your S3 bucket has a public URL pattern
-          // You might need to adjust this based on your setup
-          const baseUrl = process.env.REACT_APP_S3_BASE_URL || 'https://your-s3-bucket.s3.amazonaws.com';
-          imageUrl = `${baseUrl}/${s3Path}`;
-        }
-        
-        uploadedUrls.push(imageUrl);
-      }
-      
-      // Get existing image URLs
-      const existingUrls = property.images?.map((img: any) => {
-        if (typeof img === 'string') return img;
-        if (typeof img === 'object') return img.url || img.s3_path;
-        return null;
-      }).filter(Boolean) || [];
-      
-      // Combine new and existing URLs
-      const allUrls = [...uploadedUrls, ...existingUrls];
-      
-      // Update property with new images array
-      return propertyApi.update(property.id, { images: allUrls });
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["adminPropertyDetails", id] });
-      addNotification('success', 'Images Uploaded', `Image(s) added successfully.`);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    },
-    onError: (error: any) => {
-      console.error("Upload error:", error);
-      addNotification('error', 'Upload Failed', error?.response?.data?.message || error?.message || 'Failed to upload images.');
+ const uploadImagesMutation = useMutation({
+  mutationFn: async (files: FileList) => {
+    if (!property) throw new Error("Property context is missing");
+    const uploadedPaths = [];
+
+    // 1. Direct Upload to Supabase (Bypassing your Laravel API)
+    for (const file of Array.from(files)) {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `property-images/${property.id}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('user-files')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      uploadedPaths.push(filePath);
     }
-  });
-  
+
+    // 2. ONLY NOW update the database via Laravel with the file paths
+    const existingPaths = property.images?.map((img: any) => 
+        typeof img === 'string' ? img : (img.url || img.s3_path)
+    ).filter(Boolean) || [];
+    
+    return propertyApi.update(property.id, { 
+      images: [...existingPaths, ...uploadedPaths] 
+    });
+  },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ["adminPropertyDetails", id] });
+    addNotification('success', 'Images Uploaded', 'Image(s) added successfully.');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  },
+  onError: (error: any) => {
+    console.error("DEBUG SUPABASE ERROR:", error);
+    addNotification('error', 'Upload Failed', error?.message || 'Check bucket name.');
+  }
+});
   // Delete image mutation
   const deleteImageMutation = useMutation({
     mutationFn: async (imageUrl: string) => {
