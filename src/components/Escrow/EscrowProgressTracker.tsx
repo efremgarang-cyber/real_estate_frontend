@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { cn, formatCurrency } from '../../lib/utils';
 import { escrowApi } from '../../api/escrow';
-import { EscrowWithProgress } from '../../types'; // ✅ FIXED: Import from global unified types system
+import { EscrowWithProgress } from '../../types'; // Unified types system
 import { Skeleton } from '../ui/skeleton'; 
 
 interface EscrowProgressTrackerProps {
@@ -47,15 +47,20 @@ export const EscrowProgressTracker: React.FC<EscrowProgressTrackerProps> = ({ es
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // 👇 Guard Clause: Prevent API calls if the ID is falsy or uninitialized
+    if (!escrowId || escrowId === 0) {
+      setLoading(false);
+      return;
+    }
     fetchData();
   }, [escrowId]);
 
-const fetchData = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      // ✅ FIXED: Read responses directly without appending .data or checking .data fallback extensions
+      // Read responses directly without appending duplicate .data structures
       const [resolvedEscrow, resolvedTimeline] = await Promise.all([
         escrowApi.getById(escrowId) as Promise<EscrowWithProgress>,
         escrowApi.getTimeline(escrowId) as Promise<any>
@@ -70,11 +75,12 @@ const fetchData = async () => {
       setLoading(false);
     }
   };
+
   if (loading) {
     return <EscrowProgressSkeleton />;
   }
 
-  // Verify core structural validity of internal escrow parameters layout
+  // Verify structural validity of internal layout params
   if (error || !dataWrapper || !dataWrapper.escrow) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
@@ -84,10 +90,10 @@ const fetchData = async () => {
     );
   }
 
-  // ✅ SAFELY UNWRAP DATA: Extract nested elements from EscrowWithProgress model layout
+  // Safely unwrap metrics data layout parameters
   const { escrow, progress, total_paid, remaining, is_fully_funded } = dataWrapper;
 
-  // ✅ PREVENT NaN VALUES: Safely parse database decimal strings before passing them to formatCurrency utilities
+  // Prevent NaN values by parsing potential backend decimal string expressions
   const safeTotalAmount = typeof escrow.amount === 'string' ? parseFloat(escrow.amount) : escrow.amount;
   const numericTotalAmount = isNaN(safeTotalAmount) ? 0 : safeTotalAmount;
   const numericTotalPaid = typeof total_paid === 'string' ? parseFloat(total_paid) : total_paid || 0;

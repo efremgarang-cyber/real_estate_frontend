@@ -24,7 +24,7 @@ import { VaultPage } from "./pages/Agent/vault/Vault";
 import { Settings } from "./pages/Settings";
 
 // ✨ Your Feature Components (Added Back)
-import { EscrowPage } from "./pages/EscrowPage";
+import { EscrowPage } from "./pages/Agent/escrow/EscrowPage";
 import SubscriptionPage from "./pages/SubscriptionPage";
 
 // Admin Module Components
