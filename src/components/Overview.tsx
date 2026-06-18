@@ -1,26 +1,26 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { 
-  TrendingUp, 
-  Home as HomeIcon, 
-  Users as UsersIcon, 
+import {
+  TrendingUp,
+  Home as HomeIcon,
+  Users as UsersIcon,
   Shield as ShieldIcon,
   Loader2
 } from "lucide-react";
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   LineChart,
   Line
 } from "recharts";
+import { PropertyMatchesWidget } from "./PropertyMatchesWidget";
 import { formatCurrency, cn } from "../lib/utils";
-
-// API Imports (Adjust the relative paths based on your folder structure)
+// API Imports 
 import { propertyApi } from "../api/properties";
 import { leadApi } from "../api/leads";
 import { documentApi } from "../api/documents";
@@ -48,7 +48,7 @@ export const DashboardOverview: React.FC = () => {
         // 1. Fire parallel requests to gather all necessary data
         const [userRes, propsRes, leadsRes] = await Promise.allSettled([
           authApi.getCurrentUser(),
-          propertyApi.getAll(1),
+          propertyApi.getAgencyProperties(1),
           leadApi.getAll(1),
         ]);
 
@@ -64,15 +64,15 @@ export const DashboardOverview: React.FC = () => {
 
         const properties = extractData(propsRes);
         const leads = extractData(leadsRes);
-        
+
         let docs: any[] = [];
-        
+
         // 2. Fetch documents if we successfully retrieved the user's agency ID
         if (userRes.status === "fulfilled") {
           const profile = userRes.value.profile;
           // Support both camelCase and snake_case depending on your backend transformer
-          const agencyId = profile?.agencyId || (profile as any)?.agency_id; 
-          
+          const agencyId = profile?.agencyId || (profile as any)?.agency_id;
+
           if (agencyId) {
             try {
               const docsRes = await documentApi.getAgencyDocuments({ agencyId: String(agencyId) });
@@ -86,8 +86,8 @@ export const DashboardOverview: React.FC = () => {
         // 3. Compute Top-Level Stats
         const activeListingsCount = properties.filter((p: any) => p.status?.toLowerCase() === "active").length;
         const newLeadsCount = leads.filter((l: any) => l.kanban_stage === "new" || l.status === "new").length;
-        const closedDealsCount = properties.filter((p: any) => p.status?.toLowerCase() === "under_contract" || p.status?.toLowerCase() === "sold").length 
-                               + leads.filter((l: any) => l.kanban_stage?.toLowerCase() === "won").length;
+        const closedDealsCount = properties.filter((p: any) => p.status?.toLowerCase() === "under_contract" || p.status?.toLowerCase() === "sold").length
+          + leads.filter((l: any) => l.kanban_stage?.toLowerCase() === "won").length;
         const kycPendingCount = docs.filter((d: any) => d.status?.toLowerCase() === "pending").length;
 
         setStats({
@@ -119,7 +119,7 @@ export const DashboardOverview: React.FC = () => {
   const aggregateChartData = (properties: any[], leads: any[]) => {
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const currentMonth = new Date().getMonth();
-    
+
     // Create a base array for the last 5 months up to the current month
     const aggregated = Array.from({ length: 5 }, (_, i) => {
       const monthIndex = (currentMonth - 4 + i + 12) % 12;
@@ -173,29 +173,29 @@ export const DashboardOverview: React.FC = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard 
-          label="Active Listings" 
-          value={stats.activeListings.toString()} 
-          trend="+12%" 
-          icon={HomeIcon} 
+        <StatCard
+          label="Active Listings"
+          value={stats.activeListings.toString()}
+          trend="+12%"
+          icon={HomeIcon}
         />
-        <StatCard 
-          label="New Leads" 
-          value={stats.newLeads.toString()} 
-          trend="+24%" 
-          icon={UsersIcon} 
+        <StatCard
+          label="New Leads"
+          value={stats.newLeads.toString()}
+          trend="+24%"
+          icon={UsersIcon}
         />
-        <StatCard 
-          label="Closed Deals" 
-          value={stats.closedDeals.toString()} 
-          trend="+8%" 
-          icon={TrendingUp} 
+        <StatCard
+          label="Closed Deals"
+          value={stats.closedDeals.toString()}
+          trend="+8%"
+          icon={TrendingUp}
         />
-        <StatCard 
-          label="KYC Pending" 
-          value={stats.kycPending.toString()} 
-          trend={stats.kycPending > 0 ? "-2" : "0"} 
-          icon={ShieldIcon} 
+        <StatCard
+          label="KYC Pending"
+          value={stats.kycPending.toString()}
+          trend={stats.kycPending > 0 ? "-2" : "0"}
+          icon={ShieldIcon}
           trendInverse
         />
       </div>
@@ -209,27 +209,27 @@ export const DashboardOverview: React.FC = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                  <XAxis 
-                    dataKey="name" 
-                    axisLine={false} 
-                    tickLine={false} 
+                  <XAxis
+                    dataKey="name"
+                    axisLine={false}
+                    tickLine={false}
                     fontSize={12}
                     tick={{ fill: '#9ca3af' }}
                     dy={10}
                   />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
                     fontSize={12}
                     tick={{ fill: '#9ca3af' }}
-                    tickFormatter={(val) => `KES ${val/1000000}M`}
+                    tickFormatter={(val) => `KES ${val / 1000000}M`}
                     dx={-10}
                   />
-                  <Tooltip 
+                  <Tooltip
                     cursor={{ fill: '#f9fafb' }}
-                    contentStyle={{ 
-                      backgroundColor: '#ffffff', 
-                      border: '1px solid #f3f4f6', 
+                    contentStyle={{
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #f3f4f6',
                       borderRadius: '12px',
                       boxShadow: '0 10px 25px rgba(0,0,0,0.05)',
                       color: '#141414',
@@ -254,26 +254,26 @@ export const DashboardOverview: React.FC = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                  <XAxis 
-                    dataKey="name" 
-                    axisLine={false} 
-                    tickLine={false} 
+                  <XAxis
+                    dataKey="name"
+                    axisLine={false}
+                    tickLine={false}
                     fontSize={12}
                     tick={{ fill: '#9ca3af' }}
                     dy={10}
                   />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
                     fontSize={12}
                     tick={{ fill: '#9ca3af' }}
                     dx={-10}
                     allowDecimals={false}
                   />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: '#ffffff', 
-                      border: '1px solid #f3f4f6', 
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #f3f4f6',
                       borderRadius: '12px',
                       boxShadow: '0 10px 25px rgba(0,0,0,0.05)',
                       color: '#141414',
@@ -282,72 +282,80 @@ export const DashboardOverview: React.FC = () => {
                     }}
                     formatter={(value: number) => [value, "Total Deals"]}
                   />
-                  <Line 
-                    type="monotone" 
-                    dataKey="deals" 
-                    stroke="#141414" 
-                    strokeWidth={3} 
-                    dot={{ r: 4, fill: "#ffffff", strokeWidth: 2, stroke: "#141414" }} 
+                  <Line
+                    type="monotone"
+                    dataKey="deals"
+                    stroke="#141414"
+                    strokeWidth={3}
+                    dot={{ r: 4, fill: "#ffffff", strokeWidth: 2, stroke: "#141414" }}
                     activeDot={{ r: 6, fill: "#141414", strokeWidth: 0 }}
                   />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-               <div className="flex h-full items-center justify-center text-sm text-gray-400 font-medium">Insufficient deal volume data</div>
+              <div className="flex h-full items-center justify-center text-sm text-gray-400 font-medium">Insufficient deal volume data</div>
             )}
           </div>
         </div>
       </div>
 
       {/* Recent Listings Grid */}
-      <div className="pt-4">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="font-display text-xl font-bold text-[#141414]">Recent Listings</h3>
-          <Link to="/properties" className="text-sm font-semibold text-gray-500 hover:text-[#141414] transition-colors">
-            View all
-          </Link>
+      <div>
+        {/* AI Matches (1 Column) */}
+        <div className="lg:col-span-1">
+          <PropertyMatchesWidget />
         </div>
-        
-        {recentListings.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {recentListings.map((item) => (
-              <Link 
-                key={item.id} 
-                to={`/properties/${item.id}`}
-                className="bg-white rounded-[2rem] p-5 shadow-[0_10px_30px_rgba(0,0,0,0.02)] border border-gray-100 group cursor-pointer hover:shadow-[0_20px_50px_rgba(0,0,0,0.08)] transition-all flex flex-col"
-              >
-                <div className="relative aspect-video bg-gray-100 mb-5 overflow-hidden rounded-2xl shrink-0">
-                  <img 
-                    src={item.images?.[0]?.url || "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=800"}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                    alt={item.title}
-                  />
-                </div>
-                <div className="flex-1 flex flex-col">
-                  <div className="mb-4">
-                    <div className="flex justify-between items-start mb-1">
-                      <h4 className="font-display font-bold text-lg text-[#141414] leading-tight pr-4 line-clamp-1">{item.title}</h4>
-                      <span className={cn(
-                        "font-bold uppercase text-xs tracking-wider shrink-0 mt-1",
-                        item.status?.toLowerCase() === 'active' ? "text-green-600" : "text-gray-400"
-                      )}>
-                        {item.status ? item.status.replace('_', ' ') : 'UNKNOWN'}
-                      </span>
+
+        {/* Recent Listings (2 Columns) */}    
+        <div className="lg:col-span-2 flex flex-col">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-display text-xl font-bold text-[#141414]">Recent Listings</h3>
+            <Link to="/properties" className="text-sm font-semibold text-gray-500 hover:text-[#141414] transition-colors">
+              View all
+            </Link>
+          </div>
+
+          {recentListings.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {recentListings.map((item) => (
+                <Link
+                  key={item.id}
+                  to={`/properties/${item.id}`}
+                  className="bg-white rounded-[2rem] p-5 shadow-[0_10px_30px_rgba(0,0,0,0.02)] border border-gray-100 group cursor-pointer hover:shadow-[0_20px_50px_rgba(0,0,0,0.08)] transition-all flex flex-col"
+                >
+                  <div className="relative aspect-video bg-gray-100 mb-5 overflow-hidden rounded-2xl shrink-0">
+                    <img
+                      src={item.images?.[0]?.url || "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=800"}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                      alt={item.title}
+                    />
+                  </div>
+                  <div className="flex-1 flex flex-col">
+                    <div className="mb-4">
+                      <div className="flex justify-between items-start mb-1">
+                        <h4 className="font-display font-bold text-lg text-[#141414] leading-tight pr-4 line-clamp-1">{item.title}</h4>
+                        <span className={cn(
+                          "font-bold uppercase text-xs tracking-wider shrink-0 mt-1",
+                          item.status?.toLowerCase() === 'active' ? "text-green-600" : "text-gray-400"
+                        )}>
+                          {item.status ? item.status.replace('_', ' ') : 'UNKNOWN'}
+                        </span>
+                      </div>
+                      <p className="text-sm font-medium text-gray-500 line-clamp-1">{item.location || item.address}</p>
                     </div>
-                    <p className="text-sm font-medium text-gray-500 line-clamp-1">{item.location || item.address}</p>
+                    <div className="mt-auto">
+                      <span className="text-xl font-bold text-[#141414]">{formatCurrency(Number(item.price || 0))}</span>
+                    </div>
                   </div>
-                  <div className="mt-auto">
-                    <span className="text-xl font-bold text-[#141414]">{formatCurrency(Number(item.price || 0))}</span>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <div className="p-8 text-center bg-gray-50 rounded-2xl border border-gray-100 text-gray-500 font-medium text-sm">
-            No recent properties listed yet.
-          </div>
-        )}
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="p-8 text-center bg-gray-50 rounded-2xl border border-gray-100 text-gray-500 font-medium text-sm">
+              No recent properties listed yet.
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -355,7 +363,7 @@ export const DashboardOverview: React.FC = () => {
 
 const StatCard = ({ label, value, trend, icon: Icon, trendInverse = false }: any) => {
   const isPositive = String(trend).startsWith("+");
-  const trendingColor = trendInverse 
+  const trendingColor = trendInverse
     ? (isPositive ? "text-red-500" : "text-green-500")
     : (isPositive ? "text-green-500" : "text-red-500");
 
