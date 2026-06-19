@@ -31,9 +31,12 @@ export const NewListingModal: React.FC<NewListingModalProps> = ({ onClose, onSuc
 
   // --- Form State ---
   const [title, setTitle] = useState("");
+  const [type, setType] = useState("Apartment");
   const [city, setCity] = useState("");
   const [location, setLocation] = useState("");
   const [price, setPrice] = useState("");
+  const [serviceCharge, setServiceCharge] = useState("");
+  const [currentRent, setCurrentRent] = useState("");
   const [status, setStatus] = useState("Active");
   const [beds, setBeds] = useState("");
   const [baths, setBaths] = useState("");
@@ -106,7 +109,7 @@ export const NewListingModal: React.FC<NewListingModalProps> = ({ onClose, onSuc
     setIsGeneratingAI(true);
     try {
       const response = await api.post("/properties/marketing/generate", {
-        property_type: "Premium Property",
+        property_type: type,
         location: `${location}, ${city}`,
         price,
         bedrooms: Number(beds) || null,
@@ -144,7 +147,7 @@ export const NewListingModal: React.FC<NewListingModalProps> = ({ onClose, onSuc
         const filePath = `properties/${folder}/${fileName}`;
 
         const { data, error } = await supabase.storage
-          .from('property_images')
+          .from('user-files') 
           .upload(filePath, img.file, { cacheControl: '3600', upsert: false });
 
         if (error) throw error;
@@ -158,8 +161,10 @@ export const NewListingModal: React.FC<NewListingModalProps> = ({ onClose, onSuc
       ]);
 
       await propertyApi.create({
-        title, city, location,
+        title, city, location, type,
         price: Number(price),
+        service_charge: serviceCharge ? Number(serviceCharge) : null,
+        current_rent: currentRent ? Number(currentRent) : null,
         bedrooms: Number(beds),
         baths: Number(baths),
         sqft: Number(sqft),
@@ -215,8 +220,16 @@ export const NewListingModal: React.FC<NewListingModalProps> = ({ onClose, onSuc
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Asking Price (KES)</label>
-              <input type="number" required value={price} onChange={e => setPrice(e.target.value)} placeholder="e.g. 85000000" className={inputClass} />
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Property Type</label>
+              <select required value={type} onChange={e => setType(e.target.value)} className={cn(inputClass, "cursor-pointer")}>
+                <option value="Apartment">Apartment</option>
+                <option value="Maisonette">Maisonette</option>
+                <option value="Townhouse">Townhouse</option>
+                <option value="Villa">Villa</option>
+                <option value="Commercial">Commercial</option>
+                <option value="Land">Land</option>
+                <option value="Other">Other</option>
+              </select>
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Listing Status</label>
@@ -226,6 +239,21 @@ export const NewListingModal: React.FC<NewListingModalProps> = ({ onClose, onSuc
                 <option value="Closed">Closed</option>
                 <option value="Expired">Expired</option>
               </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-y border-gray-100 py-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Asking Price</label>
+              <input type="number" required value={price} onChange={e => setPrice(e.target.value)} placeholder="e.g. 85000000" className={inputClass} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Service Chg/mo</label>
+              <input type="number" value={serviceCharge} onChange={e => setServiceCharge(e.target.value)} placeholder="Optional" className={inputClass} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Current Rent/mo</label>
+              <input type="number" value={currentRent} onChange={e => setCurrentRent(e.target.value)} placeholder="If tenanted" className={inputClass} />
             </div>
           </div>
 

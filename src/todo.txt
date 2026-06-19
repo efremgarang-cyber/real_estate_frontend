@@ -8,3 +8,9 @@ caching: prevent calling the server each time you switch pages
 add this exact line at the bottom (replacing the path with your actual application directory):
 
     * * * * * cd /path-to-your-project && php artisan schedule:run >> /dev/null 2>&1
+
+add an agent that predicts the value of a property/how long it should take to recover the client's money based on the location 
+
+=== BUGS ===
+Leads PAGE button not working
+New Listing failing to upload to bucket

@@ -36,6 +36,7 @@ import { AdminLeadsDashboard } from "./pages/Admin/leads/AdminLeads";
 import { UserMonitor } from "./pages/Admin/UserMonitor";
 import { AdminSecurityPage } from "./pages/Admin/AdminSecurityPage";
 import { UpdatePasswordPage } from "./pages/Agent/auth/UpdatePassword";
+import { MatchesInbox } from "./pages/Agent/leads/MatchesInbox";
 
 export const appRoutes: RouteObject[
   
@@ -73,6 +74,7 @@ export const appRoutes: RouteObject[
               { path: "properties", element: <PropertiesPage /> },
               { path: "properties/:id", element: <PropertyDetail /> },
               { path: "leads", element: <KanbanBoard /> },
+              { path: "matches", element: <MatchesInbox/>},
               { path: "vault", element: <VaultPage /> },
               { path: "settings", element: <Settings key="agent-settings" /> },
               { path: "escrows", element: <EscrowPage /> },

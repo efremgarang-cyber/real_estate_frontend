@@ -1,10 +1,18 @@
 @import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 @theme {
-  /* Updated to use Helvetica globally */
-  --font-sans: "Helvetica", "Arial", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Cormorant Garamond", serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  /* Enforce Helvetica everywhere */
+  --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply font-sans antialiased text-[#141414] bg-[#f4f5f7];
+  }
 }
 
 @custom-variant dark (&:where(.dark, .dark *));

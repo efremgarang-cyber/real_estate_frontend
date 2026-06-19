@@ -15,7 +15,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { formatCurrency, cn } from "../../../lib/utils";
 import { propertyApi } from "../../../api/properties"; 
-import { vaultApi } from "../../../api/vault";
+import { supabase } from "@/src/lib/supabase";
 import { AnimatePresence } from "motion/react";
 import { NewListingModal } from "../../../components/NewListingModal";
 
@@ -28,13 +28,25 @@ const KENYAN_PROPERTY_IMAGE_MAP: Record<string, string> = {
   default: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=1200&auto=format&fit=crop"
 };
 
+// Robust Media Resolver using Supabase
+const resolveMediaSource = (media: any): string => {
+  if (!media) return "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=1200";
+  
+  const rawUrl = typeof media === 'string' ? media : (media.signed_url || media.s3_path || media.url);
+  if (!rawUrl) return "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=1200";
+
+  if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://') || rawUrl.startsWith('data:')) return rawUrl;
+
+  const { data } = supabase.storage.from('user-files').getPublicUrl(rawUrl);
+  return data.publicUrl;
+};
+
 export const PropertiesPage: React.FC = () => {
   const [view, setView] = useState<"grid" | "list">("grid");
   const [page, setPage] = useState(1);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // 1. React Query implementation for caching & fetching
   const { 
     data: properties = [], 
     isLoading, 
@@ -46,40 +58,24 @@ export const PropertiesPage: React.FC = () => {
       const response = await propertyApi.getAgencyProperties(page);
       const items: any[] = response.data || [];
 
-      return await Promise.all(
-        (Array.isArray(items) ? items : []).map(async (property: any) => {
-          let rawUrl: string | null = null;
+      return (Array.isArray(items) ? items : []).map((property: any) => {
+        let finalUrl = "";
 
-          if (property?.images && Array.isArray(property.images) && property.images.length > 0) {
-            const primaryImage = property.images[0];
-            console.log("Primary image entry:", primaryImage);
+        if (property?.images && Array.isArray(property.images) && property.images.length > 0) {
+          // Pass the first image object/string directly into the resolver
+          finalUrl = resolveMediaSource(property.images[0]);
+        } else {
+          const searchString = `${property?.title || ""} ${property?.location || ""} ${property?.neighborhood || ""}`.toLowerCase();
+          if (searchString.includes("kitisuru"))       finalUrl = KENYAN_PROPERTY_IMAGE_MAP.kitisuru;
+          else if (searchString.includes("muthaiga") || searchString.includes("oribi")) finalUrl = KENYAN_PROPERTY_IMAGE_MAP.muthaiga;
+          else if (searchString.includes("milimani"))  finalUrl = KENYAN_PROPERTY_IMAGE_MAP.milimani;
+          else if (searchString.includes("karen"))     finalUrl = KENYAN_PROPERTY_IMAGE_MAP.karen;
+          else if (searchString.includes("kilimani"))  finalUrl = KENYAN_PROPERTY_IMAGE_MAP.kilimani;
+          else finalUrl = KENYAN_PROPERTY_IMAGE_MAP.default;
+        }
 
-            if (typeof primaryImage === "string") {
-              rawUrl = primaryImage;
-            } else if (typeof primaryImage === "object" && primaryImage !== null) {
-              rawUrl = primaryImage.s3_path || primaryImage.url || primaryImage.file_path || null;
-            }
-          }
-
-          console.log("Resolved rawUrl for", property.title, ":", rawUrl);
-
-          let finalUrl = "";
-          if (rawUrl) {
-            finalUrl = await vaultApi.getSignedUrl(rawUrl);
-            console.log("Signed URL:", finalUrl);
-          } else {
-            const searchString = `${property?.title || ""} ${property?.location || ""} ${property?.neighborhood || ""}`.toLowerCase();
-            if (searchString.includes("kitisuru"))       finalUrl = KENYAN_PROPERTY_IMAGE_MAP.kitisuru;
-            else if (searchString.includes("muthaiga") || searchString.includes("oribi")) finalUrl = KENYAN_PROPERTY_IMAGE_MAP.muthaiga;
-            else if (searchString.includes("milimani"))  finalUrl = KENYAN_PROPERTY_IMAGE_MAP.milimani;
-            else if (searchString.includes("karen"))     finalUrl = KENYAN_PROPERTY_IMAGE_MAP.karen;
-            else if (searchString.includes("kilimani"))  finalUrl = KENYAN_PROPERTY_IMAGE_MAP.kilimani;
-            else finalUrl = KENYAN_PROPERTY_IMAGE_MAP.default;
-          }
-
-          return { ...property, _signedMainImage: finalUrl };
-        })
-      );
+        return { ...property, _signedMainImage: finalUrl };
+      });
     },
   });
 
@@ -119,7 +115,7 @@ export const PropertiesPage: React.FC = () => {
               <List size={18} />
             </button>
           </div>
-          <button onClick={() => setShowUploadModal(true)} className="flex items-center gap-2 bg-[#141414] hover:bg-black text-white px-5 py-3 rounded-xl font-medium transition-colors text-sm shadow-sm shrink-0">
+          <button onClick={() => setShowUploadModal(true)} className="cursor-pointer flex items-center gap-2 bg-[#141414] hover:bg-black text-white px-5 py-3 rounded-xl font-medium transition-colors text-sm shadow-sm shrink-0">
             <Plus size={16} /> New Listing
           </button>
         </div>

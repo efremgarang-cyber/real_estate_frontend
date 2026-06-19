@@ -17,10 +17,8 @@ module.exports = {
         shimmer: 'shimmer 1.8s ease-in-out infinite',
       },
       fontFamily: {
-        // Overrides the default sans font
-        sans: ['Helvetica', 'Arial', 'sans-serif', ...defaultTheme.fontFamily.sans],
-        // Overrides your custom display font for headers if necessary
-        display: ['Helvetica', 'Arial', 'sans-serif'],
+        sans: ['"Helvetica Neue"', 'Helvetica', 'Arial', ...defaultTheme.fontFamily.sans],
+        display: ['"Helvetica Neue"', 'Helvetica', 'Arial', 'sans-serif'],
       },
       keyframes: {
         shimmer: {
