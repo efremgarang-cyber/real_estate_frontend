@@ -369,12 +369,31 @@ export const PropertyDetail: React.FC = () => {
     onError: () => addNotification('error', 'Deletion Failed', 'Failed to remove image.')
   });
 
+  const deletePropertyMutation = useMutation({
+    mutationFn: async () => {
+      if (!property) throw new Error("Missing property");
+      return propertyApi.delete(property.id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['properties'] });
+      // Redirect back to properties portfolio view
+      navigate('/agent/properties');
+    },
+    onError: () => addNotification('error', 'Deletion Failed', 'Could not delete the listing.')
+  });
+
   const handleSaveChanges = () => {
     updateMutation.mutate({
       title: editForm.title, price: Number(editForm.price), location: editForm.location,
       bedrooms: Number(editForm.bedrooms), baths: Number(editForm.baths), sqft: Number(editForm.sqft),
       description: editForm.description, status: editForm.status
     });
+  };
+
+  const handleDeleteProperty = () => {
+    if (window.confirm("Are you sure you want to delete this listing? This action cannot be undone.")) {
+      deletePropertyMutation.mutate();
+    }
   };
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -457,9 +476,19 @@ export const PropertyDetail: React.FC = () => {
               </button>
             </>
           ) : (
-            <button onClick={handleEditToggle} className="cursor-pointer flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-[#141414] rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">
-              <Edit2 size={16} /> Edit Details
-            </button>
+            <>
+              <button 
+                onClick={handleDeleteProperty} 
+                disabled={deletePropertyMutation.isPending}
+                className="cursor-pointer flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm font-medium hover:bg-red-100 transition-colors disabled:opacity-50"
+              >
+                {deletePropertyMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />} 
+                Delete
+              </button>
+              <button onClick={handleEditToggle} className="cursor-pointer flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-[#141414] rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">
+                <Edit2 size={16} /> Edit Details
+              </button>
+            </>
           )}
           <button onClick={generatePDFBrochure} disabled={isGeneratingPDF} className="cursor-pointer flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-[#141414] rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">
             {isGeneratingPDF ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} Brochure

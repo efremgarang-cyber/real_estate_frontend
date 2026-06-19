@@ -156,7 +156,7 @@ export const LoginPage: React.FC = () => {
             {forgotPasswordStep !== 'none' && (
               <button 
                 onClick={() => setForgotPasswordStep('none')}
-                className="absolute left-0 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#141414] transition-colors"
+                className="cursor-pointer absolute left-0 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#141414] transition-colors"
                 title="Back to login"
               >
                 <ArrowLeft size={20} />
@@ -210,7 +210,7 @@ export const LoginPage: React.FC = () => {
                   </div>
                   <button
                     type="submit" disabled={isAuthenticating || !resetEmail}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 mt-4 bg-[#141414] hover:bg-black text-white rounded-xl font-bold transition-colors disabled:opacity-70 disabled:cursor-not-allowed shadow-sm"
+                    className="cursor-pointer w-full flex items-center justify-center gap-2 py-3.5 mt-4 bg-[#141414] hover:bg-black text-white rounded-xl font-bold transition-colors disabled:opacity-70 disabled:cursor-not-allowed shadow-sm"
                   >
                     {isAuthenticating ? <Loader2 size={18} className="animate-spin" /> : "Send Recovery Code"}
                     {!isAuthenticating && <ArrowRight size={18} />}
@@ -230,7 +230,7 @@ export const LoginPage: React.FC = () => {
                   </div>
                   <button
                     type="submit" disabled={resetCode.length < 6}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 mt-4 bg-[#141414] hover:bg-black text-white rounded-xl font-bold transition-colors disabled:opacity-70 disabled:cursor-not-allowed shadow-sm"
+                    className="cursor-pointer w-full flex items-center justify-center gap-2 py-3.5 mt-4 bg-[#141414] hover:bg-black text-white rounded-xl font-bold transition-colors disabled:opacity-70 disabled:cursor-not-allowed shadow-sm"
                   >
                     Verify & Continue
                     <ArrowRight size={18} />
@@ -262,7 +262,7 @@ export const LoginPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setAccountType('client')}
-                        className={`flex-1 py-2.5 text-[11px] font-bold uppercase tracking-wider rounded-xl transition-colors border ${
+                        className={`cursor-pointer flex-1 py-2.5 text-[11px] font-bold uppercase tracking-wider rounded-xl transition-colors border ${
                           accountType === 'client' 
                             ? 'bg-[#141414] text-white border-[#141414]' 
                             : 'bg-white text-gray-500 border-gray-300 hover:border-gray-300'
@@ -273,7 +273,7 @@ export const LoginPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setAccountType('agent')}
-                        className={`flex-1 py-2.5 text-[11px] font-bold uppercase tracking-wider rounded-xl transition-colors border ${
+                        className={`cursor-pointer flex-1 py-2.5 text-[11px] font-bold uppercase tracking-wider rounded-xl transition-colors border ${
                           accountType === 'agent' 
                             ? 'bg-[#141414] text-white border-[#141414]' 
                             : 'bg-white text-gray-500 border-gray-300 hover:border-gray-300'
@@ -330,7 +330,7 @@ export const LoginPage: React.FC = () => {
                       <button 
                         type="button" 
                         onClick={() => setForgotPasswordStep('email')}
-                        className="text-[11px] font-bold text-[#141414] hover:underline"
+                        className="cursor-pointer text-[11px] font-bold text-[#141414] hover:underline"
                       >
                         Forgot password?
                       </button>
@@ -347,7 +347,7 @@ export const LoginPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#141414] transition-colors"
+                      className="cursor-pointer absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#141414] transition-colors"
                     >
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
@@ -368,7 +368,7 @@ export const LoginPage: React.FC = () => {
 
                 <button
                   type="submit" disabled={isAuthenticating}
-                  className="w-full flex items-center justify-center gap-2 py-3.5 mt-4 bg-[#141414] hover:bg-black text-white rounded-xl font-bold transition-colors disabled:opacity-70 disabled:cursor-not-allowed shadow-sm"
+                  className="cursor-pointer w-full flex items-center justify-center gap-2 py-3.5 mt-4 bg-[#141414] hover:bg-black text-white rounded-xl font-bold transition-colors disabled:opacity-70 disabled:cursor-not-allowed shadow-sm"
                 >
                   {isAuthenticating ? <Loader2 size={18} className="animate-spin" /> : (isSignUp ? "Sign Up" : "Sign In")}
                   {!isAuthenticating && <ArrowRight size={18} />}
@@ -433,7 +433,7 @@ export const LoginPage: React.FC = () => {
             <button
               disabled={!agencyName || isProcessing}
               onClick={handleCreateAgency}
-              className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#141414] hover:bg-black text-white rounded-xl font-bold transition-colors disabled:opacity-70 disabled:cursor-not-allowed shadow-sm"
+              className="cursor-pointer w-full flex items-center justify-center gap-2 py-3.5 bg-[#141414] hover:bg-black text-white rounded-xl font-bold transition-colors disabled:opacity-70 disabled:cursor-not-allowed shadow-sm"
             >
               {isProcessing ? <Loader2 size={18} className="animate-spin" /> : "Create Agency"}
               {!isProcessing && <ArrowRight size={18} />}
