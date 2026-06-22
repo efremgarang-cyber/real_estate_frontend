@@ -19,7 +19,7 @@ import { AdminLoginPage } from "./pages/Admin/auth/AdminLoginPage";
 import { DashboardOverview } from "./components/Overview";
 import { PropertiesPage } from "./pages/Agent/properties/Listings";
 import { PropertyDetail } from "./pages/Agent/properties/PropertyDetails";
-import { KanbanBoard } from "./pages/Agent/leads/Kanban";
+import KanbanBoard from './pages/Agent/leads/Kanban';
 import { VaultPage } from "./pages/Agent/vault/Vault";
 import { Settings } from "./pages/Settings";
 

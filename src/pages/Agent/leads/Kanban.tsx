@@ -1,238 +1,160 @@
-import React, { useState, useEffect } from "react";
-import {
-  DndContext,
-  closestCorners,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragOverlay,
-} from "@dnd-kit/core";
-import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { Loader2, CreditCard, Sparkles, Lock, Search } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
-import { formatCurrency, cn } from "../../../lib/utils";
-import { useAuth } from "../../../lib/AuthContext";
-import { Lead, KanbanStage } from "../../../types";
-import { leadApi } from "../../../api/leads";
-import { KanbanColumn } from "../../../components/KanbanColumn";
-import { LeadDetailModal } from "../../../components/LeadDetailModal";
-import { CloseDealModal } from "../../../components/CloseDealModal";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom"; // Hook to seamlessly switch dashboard panels
+import { Search, MessageSquare, CheckCircle2 } from "lucide-react";
+import { KanbanCard } from "./KanbanCard"; 
+import { Lead } from "../types";
 
-interface Column {
-  id: KanbanStage;
-  title: string;
-  tasks: Lead[];
-}
+export default function Kanban() {
+  const navigate = useNavigate();
 
-export const STAGE_META: Record<KanbanStage, { color: string; dot: string }> = {
-  new: { color: "text-blue-600", dot: "bg-blue-500" },
-  contacted: { color: "text-purple-600", dot: "bg-purple-500" },
-  showing: { color: "text-indigo-600", dot: "bg-indigo-500" },
-  offer: { color: "text-amber-600", dot: "bg-amber-500" },
-  escrow: { color: "text-teal-600", dot: "bg-teal-500" },
-  closed: { color: "text-green-600", dot: "bg-green-500" },
-  lost: { color: "text-red-600", dot: "bg-red-500" },
-};
+  // Mocking lead data state
+  const [leads, setLeads] = useState<Lead[]>([
+    {
+      id: "1",
+      name: "John Smith",
+      email: "john.smith@example.com",
+      phone: "+254700000000",
+      kanban_stage: "offer",
+      assigned_to: null, 
+      value: "150000.00"
+    }
+  ]);
 
-const INITIAL_COLUMNS: Column[] = [
-  { id: "new", title: "New Leads", tasks: [] },
-  { id: "offer", title: "Under Offer", tasks: [] },
-  { id: "closed", title: "Closed & Paid", tasks: [] },
-];
+  const handleRefresh = () => {
+    console.log("Refreshing dashboard view...");
+    // Real API refetching logic hooks here to load updated webhook states
+  };
 
-export const KanbanBoard: React.FC = () => {
-  const { user } = useAuth();
-  const [columns, setColumns] = useState<Column[]>(INITIAL_COLUMNS);
-  const [activeId, setActiveId] = useState<number | null>(null);
-  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  const [loadingBoard, setLoadingBoard] = useState<boolean>(true);
-  const [leadToClose, setLeadToClose] = useState<Lead | null>(null);
-  const [triggerRefresh, setTriggerRefresh] = useState<number>(0);
-  const [notification, setNotification] = useState<{ message: string } | null>(null);
+  // Triggered when an agent executes 'Close & Pay' on an active lead card
+// Triggered when an agent executes 'Close & Pay' on an active lead card
+const handleCloseDeal = (lead: Lead) => {
+  console.log(`Initializing checkout initialization flow for lead ID: ${lead.id}`);
   
-  // New State: Live query storage for searching
-  const [searchQuery, setSearchQuery] = useState<string>("");
-
-  const fetchBoardLeads = async () => {
-    if (!user) return;
-    try {
-      setLoadingBoard(true);
-      const response = await leadApi.getAll(1);
-      const leads: Lead[] = response.data;
-      setColumns([
-        { id: "new", title: "New Leads", tasks: leads.filter(l => l.kanban_stage === "new") },
-        { id: "offer", title: "Under Offer", tasks: leads.filter(l => l.kanban_stage === "offer") },
-        { id: "closed", title: "Closed & Paid", tasks: leads.filter(l => l.kanban_stage === "closed") },
-      ]);
-    } catch (error) {
-      console.error("Failed to sync Kanban board data:", error);
-    } finally {
-      setLoadingBoard(false);
-    }
-  };
-
-  useEffect(() => { fetchBoardLeads(); }, [user?.id, triggerRefresh]);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
-
-  const onDragStart = (event: any) => setActiveId(Number(event.active.id));
-
-  const onDragEnd = async (event: any) => {
-    const { active, over } = event;
-    if (!over) { setActiveId(null); return; }
-
-    const activeLeadId = Number(active.id);
-    const fromColumn = columns.find(col => col.tasks.some(t => t.id === activeLeadId));
-
-    if (fromColumn?.id === 'closed') {
-      setNotification({ message: "This deal is finalized and cannot be moved." });
-      setActiveId(null);
-      return;
-    }
-
-    let targetStageId = columns.find(col => col.id === over.id)?.id
-      ?? columns.find(col => col.tasks.some(t => t.id === over.id))?.id;
-
-    if (fromColumn && targetStageId && fromColumn.id !== targetStageId) {
-      const activeLead = fromColumn.tasks.find(t => t.id === activeLeadId);
-      setColumns(prev => prev.map(col => {
-        if (col.id === fromColumn.id) return { ...col, tasks: col.tasks.filter(t => t.id !== activeLeadId) };
-        if (col.id === targetStageId) return { ...col, tasks: [...col.tasks, { ...activeLead!, kanban_stage: targetStageId! }] };
-        return col;
-      }));
-      try { await leadApi.updateKanbanStage(activeLeadId, targetStageId); } 
-      catch { fetchBoardLeads(); }
-    }
-    setActiveId(null);
-  };
-
-  const activeLead = activeId ? columns.flatMap(c => c.tasks).find(t => t.id === activeId) : null;
-
-  // Derived State: Perform real-time filtering without mutating source column states
-  const filteredColumns = columns.map(col => ({
-    ...col,
-    tasks: col.tasks.filter(task => {
-      const query = searchQuery.toLowerCase();
-      return (
-        task.name?.toLowerCase().includes(query) ||
-        task.email?.toLowerCase().includes(query) ||
-        task.phone?.toLowerCase().includes(query)
-      );
-    })
-  }));
-
-  if (loadingBoard) {
-    return (
-      <div className="h-[60vh] flex flex-col items-center justify-center gap-3">
-        <div className="w-10 h-10 rounded-2xl bg-[#f4f4f4] flex items-center justify-center">
-          <Loader2 className="animate-spin text-[#141414]" size={18} />
-        </div>
-        <p className="text-xs font-semibold text-gray-400 tracking-widest uppercase">
-          Loading pipeline
-        </p>
-      </div>
-    );
-  }
+  // Align perfectly with the EscrowPage pipeline bridge input requirements
+  navigate("/agent/escrows", { 
+    state: { 
+      leadContext: {
+        leadId: lead.id, // Passed down so your backend can cross-reference it
+        clientName: lead.name,
+        clientEmail: lead.email,
+        amount: lead.value,
+        description: `Property Deal for ${lead.name}`,
+        // provider variables can remain blank for the agent to complete manually
+      }
+    } 
+  });
+};
+  // Filter arrays by operational stage categories
+  const newLeads = leads.filter(l => l.kanban_stage === "new");
+  const offerLeads = leads.filter(l => l.kanban_stage === "offer");
+  const closedLeads = leads.filter(l => l.kanban_stage === "closed");
 
   return (
-    <div className="flex flex-col gap-5 h-full font-sans overflow-hidden">
+    <div className="flex-1 flex flex-col p-8 overflow-y-auto bg-[#f1f1ee] min-h-screen text-gray-800">
       
-      {/* Toolbar - Global Pipeline Summary & Live Filter Search Input */}
-      <div className="flex items-center justify-between shrink-0 px-1 gap-4">
-        <div className="flex items-center gap-3">
-          {columns.map(col => (
-            <span key={col.id} className="flex items-center gap-1.5 text-xs font-semibold text-gray-400">
-              <span className={cn("w-1.5 h-1.5 rounded-full", STAGE_META[col.id].dot)} />
-              <span className={cn("font-bold", STAGE_META[col.id].color)}>{col.tasks.length}</span>
-              {col.title}
-            </span>
-          ))}
-        </div>
+      {/* Top Header Row */}
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Leads</h1>
         
-        {/* Search Input Component replacing the manual create selection button */}
-        <div className="relative w-full max-w-xs">
-          <Search className="absolute left-3.5 top-3 text-gray-400" size={16} />
-          <input
-            type="text"
-            placeholder="Search by name, email or phone..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-[#141414] shadow-sm transition-all text-[#141414]"
+        {/* Search Bar Input Layout */}
+        <div className="relative w-full max-w-sm">
+          <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400">
+            <Search size={16} />
+          </span>
+          <input 
+            type="text" 
+            placeholder="Search by name, email or phone..." 
+            className="w-full bg-white text-sm pl-11 pr-4 py-2.5 rounded-xl shadow-xs border border-transparent focus:outline-none focus:border-gray-300 placeholder-gray-400 font-medium transition-all"
           />
         </div>
+      </header>
+
+      {/* Aggregate Indicators row */}
+      <div className="flex flex-wrap items-center gap-5 text-xs font-semibold text-gray-400 mb-6 px-1">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+          <span>{newLeads.length} New Leads</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+          <span className="text-gray-600">{offerLeads.length} Under Offer</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+          <span>{closedLeads.length} Closed & Paid</span>
+        </div>
       </div>
 
-      {/* Board Layout (Renders the Filtered Data Subset) */}
-      <div className="flex-1 overflow-hidden">
-        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-          <div className="flex gap-4 h-full overflow-x-auto pb-4">
-            {filteredColumns.map(col => (
-              <div key={col.id} className="flex flex-col w-[350px] shrink-0 h-full">
-                <div className="bg-[#f7f7f7] rounded-2xl p-3 flex-1 overflow-y-auto">
-                  <KanbanColumn col={col} setSelectedLead={setSelectedLead} onRefresh={fetchBoardLeads} onCloseDeal={setLeadToClose} />
-                </div>
-              </div>
+      {/* Board Column Wrapper */}
+      <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-5 items-start">
+        
+        {/* COLUMN 1: NEW LEADS */}
+        <div className="bg-[#f8f8f6] rounded-2xl p-4 flex flex-col min-h-[550px] border border-gray-200/40">
+          <div className="flex justify-between items-center mb-4 px-1">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-800">New Leads</h3>
+            <span className="text-xs font-bold text-gray-400 bg-gray-200/50 w-5 h-5 flex items-center justify-center rounded-md">{newLeads.length}</span>
+          </div>
+          <div className="flex flex-col gap-3">
+            {newLeads.map(lead => (
+              <KanbanCard 
+                key={lead.id} 
+                task={lead} 
+                onClick={() => {}} 
+                onRefresh={handleRefresh} 
+                onCloseDeal={() => handleCloseDeal(lead)} 
+              />
             ))}
           </div>
-          
-          <DragOverlay dropAnimation={{ duration: 200, easing: "cubic-bezier(0.18, 0.67, 0.6, 1.22)" }}>
-            {activeLead ? (
-              <motion.div
-                initial={{ rotate: 0, scale: 1 }}
-                animate={{ rotate: 2, scale: 1.02 }}
-                className="w-[310px] bg-white rounded-2xl p-4 border border-gray-100 shadow-xl cursor-grabbing"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-blue-500 block mb-1">
-                      Moving
-                    </span>
-                    <h4 className="font-bold text-[#141414] text-base leading-tight">
-                      {activeLead.name}
-                    </h4>
-                    <p className="text-xs text-gray-400 mt-0.5">{activeLead.email}</p>
-                  </div>
-                  <div className="w-8 h-8 rounded-xl bg-[#f4f4f4] flex items-center justify-center shrink-0">
-                    <Sparkles size={14} className="text-gray-400" />
-                  </div>
-                </div>
-                <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
-                  <CreditCard size={13} className="text-gray-300" />
-                  <span className="font-bold text-[#141414] text-sm">
-                    {activeLead.value ? formatCurrency(parseFloat(activeLead.value)) : "TBD"}
-                  </span>
-                </div>
-              </motion.div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
+        </div>
+
+        {/* COLUMN 2: UNDER OFFER */}
+        <div className="bg-[#f8f8f6] rounded-2xl p-4 flex flex-col min-h-[550px] border border-gray-200/40">
+          <div className="flex justify-between items-center mb-4 px-1">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-800">Under Offer</h3>
+            <span className="text-xs font-bold text-gray-500 bg-gray-200/80 w-5 h-5 flex items-center justify-center rounded-md">{offerLeads.length}</span>
+          </div>
+          <div className="flex flex-col gap-3">
+            {offerLeads.map(lead => (
+              <KanbanCard 
+                key={lead.id} 
+                task={lead} 
+                onClick={() => {}} 
+                onRefresh={handleRefresh} 
+                onCloseDeal={() => handleCloseDeal(lead)} 
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* COLUMN 3: CLOSED & PAID */}
+        <div className="bg-[#f8f8f6] rounded-2xl p-4 flex flex-col min-h-[550px] border border-gray-200/40">
+          <div className="flex justify-between items-center mb-4 px-1">
+            <div className="flex items-center gap-1.5">
+              <CheckCircle2 size={13} className="text-emerald-500" />
+              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-800">Closed & Paid</h3>
+            </div>
+            <span className="text-xs font-bold text-gray-400 bg-gray-200/50 w-5 h-5 flex items-center justify-center rounded-md">{closedLeads.length}</span>
+          </div>
+          <div className="flex flex-col gap-3">
+            {closedLeads.map(lead => (
+              <KanbanCard 
+                key={lead.id} 
+                task={lead} 
+                onClick={() => {}} 
+                onRefresh={handleRefresh} 
+                onCloseDeal={() => handleCloseDeal(lead)} 
+              />
+            ))}
+          </div>
+        </div>
+
       </div>
 
-      {/* Modals & Centered Notifications */}
-      <AnimatePresence>
-        {notification && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-[#141414]/20 backdrop-blur-[2px] p-6">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white border border-gray-100 shadow-2xl rounded-3xl p-6 w-full max-w-sm flex flex-col items-center text-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
-                <Lock size={20} className="text-red-600" />
-              </div>
-              <div>
-                <h4 className="text-lg font-bold text-[#141414]">Access Denied</h4>
-                <p className="text-sm text-gray-500 mt-1">{notification.message}</p>
-              </div>
-              <button onClick={() => setNotification(null)} className="w-full py-3 mt-2 bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-xl font-bold transition-colors">
-                Dismiss
-              </button>
-            </motion.div>
-          </div>
-        )}
-        {selectedLead && <LeadDetailModal leadId={selectedLead.id} onClose={() => { setSelectedLead(null); fetchBoardLeads(); }} />}
-        {leadToClose && <CloseDealModal lead={leadToClose} onClose={() => setLeadToClose(null)} onSuccess={() => { setLeadToClose(null); fetchBoardLeads(); }} />}
-      </AnimatePresence>
+      {/* Floating Chat Icon Action */}
+      <button className="fixed bottom-6 right-6 bg-[#1a1a1a] hover:bg-black text-white p-4 rounded-full shadow-lg transition-transform hover:scale-105">
+        <MessageSquare size={22} fill="currentColor" />
+      </button>
+
     </div>
   );
-};
+}
