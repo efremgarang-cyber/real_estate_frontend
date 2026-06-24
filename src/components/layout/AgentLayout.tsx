@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useLocation, Outlet } from "react-router-dom";
+import { useLocation, Outlet, Link } from "react-router-dom";
 import { BarChart3, Home, Users, ShieldCheck, Menu, Settings, Shield } from "lucide-react";
 import { useAuth } from "../../lib/AuthContext";
 import { motion, AnimatePresence } from "motion/react";
@@ -40,9 +40,14 @@ export const AgentLayout: React.FC = () => {
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {/* Mobile Responsive Header */}
         <header className="md:hidden flex items-center justify-between p-5 bg-white border-b border-gray-100 shadow-sm z-20">
-          <button 
-            onClick={() => setMobileMenuOpen(true)} 
-            className="text-gray-500 hover:text-[#141414] dark:hover:text-white transition-colors"
+          <Link to={"/"} className="pointer flex items-center gap-2">
+            <img src="/makao-icon-dark.svg" alt="Makao Logo" className="w-6 h-6 object-contain" />
+            <h1 className="font-display text-xl font-bold text-[#141414]">MAKAO</h1>
+          </Link>
+          <button title="button"
+            type="button"
+            onClick={() => setMobileMenuOpen(true)}
+            className="cursor-pointer p-2 text-gray-500 hover:bg-gray-50 rounded-xl"
           >
             <Menu size={22} />
           </button>

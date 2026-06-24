@@ -35,8 +35,11 @@ import { AdminVaultPage } from "./pages/Admin/vault/AdminVaultPage";
 import { AdminLeadsDashboard } from "./pages/Admin/leads/AdminLeads"; 
 import { UserMonitor } from "./pages/Admin/UserMonitor";
 import { AdminSecurityPage } from "./pages/Admin/AdminSecurityPage";
+import { UpdatePasswordPage } from "./pages/Agent/auth/UpdatePassword";
 
-export const appRoutes: RouteObject[] = [
+export const appRoutes: RouteObject[
+  
+] = [
   {
     path: "/",
     children: [
@@ -45,6 +48,7 @@ export const appRoutes: RouteObject[] = [
       {path: "properties", element: <PublicListings />},
       { path: "properties/:id", element: <PublicPropertyDetails /> },
       { path: "properties/:id/offer", element: <PublicOfferCheckout /> },
+      { path: "update-password", element: <UpdatePasswordPage /> },
       
       // ── Authentication ──
       {
@@ -71,8 +75,6 @@ export const appRoutes: RouteObject[] = [
               { path: "leads", element: <KanbanBoard /> },
               { path: "vault", element: <VaultPage /> },
               { path: "settings", element: <Settings key="agent-settings" /> },
-              
-              // 🚀 Your Integrated Feature Modules
               { path: "escrows", element: <EscrowPage /> },
               { path: "plans", element: <SubscriptionPage /> },
             ],

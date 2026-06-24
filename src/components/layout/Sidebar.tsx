@@ -40,18 +40,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ navItems, userInitials, onOpen
       {/* Header/Logo */}
       <div className={cn("p-8 pb-6 transition-all duration-300", isCollapsed ? "px-0 text-center" : "px-8")}>
         {isCollapsed ? (
-          <div className="flex flex-col items-center justify-center">
+          <Link to={"/"} className="cursor-pointer flex flex-col items-center justify-center">
             <img src="/makao-icon-dark.svg" alt="Makao Logo" className="w-8 h-8 object-contain" />
-          </div>
+          </Link>
         ) : (
           <div className="animate-in fade-in duration-300">
-            <div className="flex items-center gap-3">
+            <Link to={"/"} className="flex items-center gap-3">
               <img src="/makao-icon-dark.svg" alt="Makao Logo" className="w-8 h-8 object-contain" />
               <div>
                 <h1 className="font-display text-2xl font-bold text-[#141414] dark:text-white tracking-tight leading-none">MAKAO</h1>
                 <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 tracking-wider mt-1 uppercase">The Agency Platform</p>
               </div>
-            </div>
+            </Link>
           </div>
         )}
       </div>

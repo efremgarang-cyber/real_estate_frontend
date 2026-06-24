@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase";
+import { api } from "../lib/api";
 
 export const vaultApi = {
   executeSecureUpload: async (file: File, documentType: 'kyc' | 'title_deed' | 'property_image'): Promise<string> => {
@@ -30,6 +31,10 @@ export const vaultApi = {
     // CRITICAL FIX: Return the raw internal path, NOT the public URL.
     // This is what gets saved to the Laravel database as `s3_path`.
     return filePath; 
+  },
+
+  getDocuments: async (params?: { search?: string; category?: string; status?: string; date_range?: string }) => {
+    return api.get('/v1/vault/documents', { params });
   },
 
   getSignedUrl: async (filePath: string): Promise<string> => {
