@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/src/lib/AuthContext";
-import { Building2, ArrowRight, Eye, EyeOff, AlertCircle, Loader2, ArrowLeft, Mail, KeyRound } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, AlertCircle, Loader2, ArrowLeft, Mail, KeyRound } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { api } from "@/src/lib/api"; // Added API import for the password reset route
+import { api } from "@/src/lib/api";
 
 export const LoginPage: React.FC = () => {
-  const { login, register, user, profile, createAgencyAndProfile } = useAuth();
+  const { login, register, user, profile } = useAuth();
   const navigate = useNavigate();
 
   // 1. Auth Form State
@@ -17,16 +17,11 @@ export const LoginPage: React.FC = () => {
   const [agencyCode, setAgencyCode]         = useState("");
   const [showPassword, setShowPassword]     = useState(false);
   
-  // 2. Limbo Workspace State
-  const [agencyName, setAgencyName]         = useState("");
-  
-  // 3. UI Status State
+  // 2. UI Status State
   const [isAuthenticating, setIsAuthenticating] = useState(false);
-  const [isProcessing, setIsProcessing]         = useState(false);
   const [authError, setAuthError]               = useState<string | null>(null);
-  const [agencyError, setAgencyError]           = useState<string | null>(null);
 
-  // 4. Forgot Password Flow State
+  // 3. Forgot Password Flow State
   const [forgotPasswordStep, setForgotPasswordStep] = useState<'none' | 'email' | 'code'>('none');
   const [resetEmail, setResetEmail] = useState("");
   const [resetCode, setResetCode] = useState("");
@@ -57,7 +52,6 @@ export const LoginPage: React.FC = () => {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       setter(e.target.value);
       if (authError) setAuthError(null);
-      if (agencyError) setAgencyError(null);
   };
 
   const handleAgencyCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -95,19 +89,6 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const handleCreateAgency = async () => {
-    setIsProcessing(true);
-    setAgencyError(null);
-    
-    try {
-      await createAgencyAndProfile(agencyName, "Admin");
-    } catch (error: any) {
-      setAgencyError(error.response?.data?.message || "Failed to create agency. Please try again.");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   // ─── Forgot Password Handlers ─────────────────────────────────────────
   const handleSendResetCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,7 +96,6 @@ export const LoginPage: React.FC = () => {
     setAuthError(null);
 
     try {
-      // Hits the real public backend endpoint
       await api.post('/password/forgot', { email: resetEmail });
       
       setForgotPasswordStep('code');
@@ -135,8 +115,6 @@ export const LoginPage: React.FC = () => {
       return;
     }
 
-    // We do NOT verify the code with the backend yet. The backend's /password/reset 
-    // endpoint requires the new password. So we pass the email and code to the next screen.
     navigate('/update-password', { 
       state: { 
         email: resetEmail, 
@@ -389,56 +367,6 @@ export const LoginPage: React.FC = () => {
               </div>
             </>
           )}
-        </div>
-      </div>
-    );
-  }
-
-  // ─── Render: Limbo Screen (User exists, no agency) ────────────────────
-  if (user && !profile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#f8f9fa] to-[#e9ecef] p-6 font-sans">
-        <div className="max-w-md w-full p-10 bg-white rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)]">
-
-          <div className="w-16 h-16 rounded-full bg-[#141414] text-white flex items-center justify-center mx-auto mb-6 shadow-md">
-            <Building2 size={28} />
-          </div>
-
-          <h2 className="font-display text-2xl font-bold text-center text-[#141414] mb-2">
-            Workspace Required
-          </h2>
-          <p className="text-sm text-center text-gray-500 mb-8">
-            Welcome, <span className="font-bold text-[#141414]">{user.name || 'User'}</span>.
-            Create a new agency to continue.
-          </p>
-
-          {agencyError && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3">
-              <AlertCircle size={18} className="text-red-600 shrink-0 mt-0.5" />
-              <p className="text-sm font-medium text-red-600">{agencyError}</p>
-            </div>
-          )}
-
-          <div className="space-y-5">
-            <div>
-              <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Agency Name</label>
-              <input
-                type="text"
-                placeholder="e.g. Royal Estate Group"
-                value={agencyName}
-                onChange={handleInputChange(setAgencyName)}
-                className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm text-[#141414]"
-              />
-            </div>
-            <button
-              disabled={!agencyName || isProcessing}
-              onClick={handleCreateAgency}
-              className="cursor-pointer w-full flex items-center justify-center gap-2 py-3.5 bg-[#141414] hover:bg-black text-white rounded-xl font-bold transition-colors disabled:opacity-70 disabled:cursor-not-allowed shadow-sm"
-            >
-              {isProcessing ? <Loader2 size={18} className="animate-spin" /> : "Create Agency"}
-              {!isProcessing && <ArrowRight size={18} />}
-            </button>
-          </div>
         </div>
       </div>
     );
