@@ -40,4 +40,9 @@ export const propertyApi = {
     const response = await api.put<{ data: Property }>(`/properties/${id}`, payload);
     return response.data;
   },
+
+  delete: async (id: string | number): Promise<void> => {
+    const response = await api.delete(`/properties/${id}`);
+    return response.data;
+  },
 };

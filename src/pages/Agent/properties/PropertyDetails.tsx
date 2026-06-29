@@ -5,7 +5,7 @@ import { supabase } from "@/src/lib/supabase";
 import {
   ArrowLeft, MapPin, Bed, Bath, Maximize2, CheckCircle, Download, Loader2, Send, 
   X, AlertCircle, Check, Info, Edit2, Save, Image as ImageIcon, Play, Square, Check as CheckIcon,
-  Trash2, Upload
+  Trash2, Upload, TrendingUp, AlertTriangle, CheckCircle2, BarChart3, Bot
 } from "lucide-react";
 import { formatCurrency, cn } from "../../../lib/utils";
 import { propertyApi } from "../../../api/properties";
@@ -13,6 +13,7 @@ import { vaultApi } from "../../../api/vault";
 import { api } from "../../../lib/api";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { Property } from "@/src/types";
 
 interface ToastNotification { id: string; type: 'success' | 'error' | 'info' | 'warning'; title: string; message: string; }
 
@@ -55,6 +56,166 @@ const resolveMediaSource = (media: any): string => {
   const { data } = supabase.storage.from('user-files').getPublicUrl(rawUrl);
   return data.publicUrl;
 };
+
+// --- NEW ROI ASSESSMENT WIDGET ---
+interface RoiForecast {
+  estimated_annual_roi_percent: number;
+  estimated_rental_yield_percent: number;
+  estimated_appreciation_percent: number;
+  confidence: "low" | "medium" | "high";
+  reasoning: string;
+  comparable_basis: string;
+}
+
+export const RoiAssessmentWidget: React.FC<{ property: any }> = ({ property }) => {
+  const [forecast, setForecast] = useState<RoiForecast | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchRoi = async () => {
+      try {
+        const payload = {
+          property_id: property.id,
+          property_title: property.title,
+          location: property.location || property.city,
+          price: property.price,
+          property_type: property.type || "Apartment",
+          comparable_listings: [] 
+        };
+        
+        console.log("1. Sending ROI Payload to Laravel:", payload);
+
+        const response = await api.post('/properties/predict-roi', payload);
+        
+        console.log("2. Success! Received ROI Data:", response.data);
+        setForecast(response.data);
+        
+      } catch (err: any) {
+        console.error("X. ROI Request Failed!");
+        console.error("Full Error Object:", err);
+
+        // Check if the error came back from the Laravel server
+        if (err.response) {
+          console.error("Server Status:", err.response.status);
+          console.error("Server Response Data:", err.response.data);
+          
+          // Extract Laravel's exact error message or validation errors to show in the UI
+          const backendMessage = err.response.data?.message || err.response.data?.error || "Server error";
+          const validationErrors = err.response.data?.errors ? JSON.stringify(err.response.data.errors) : "";
+          
+          setError(`Error: ${backendMessage} ${validationErrors}`);
+        } 
+        // Check if the request never made it to the server (Network error / CORS)
+        else if (err.request) {
+          console.error("No response received from server. Request details:", err.request);
+          setError("Network error: Could not reach the server.");
+        } 
+        // Standard fallback
+        else {
+          setError(`Failed to generate AI financial forecast: ${err.message}`);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (property?.id) fetchRoi();
+  }, [property]);
+
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-[2rem] border border-gray-300 p-8 flex flex-col items-center justify-center min-h-[300px]">
+        <Loader2 className="w-8 h-8 animate-spin text-gray-400 mb-4" />
+        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Running Market Analysis...</p>
+      </div>
+    );
+  }
+
+  if (error || !forecast) {
+    return (
+      <div className="bg-white rounded-[2rem] border border-gray-300 p-6">
+        <p className="text-sm font-medium text-gray-500">{error || "Analysis unavailable."}</p>
+      </div>
+    );
+  }
+
+  const ConfidenceIcon = 
+    forecast.confidence === "high" ? CheckCircle2 : 
+    forecast.confidence === "medium" ? BarChart3 : AlertTriangle;
+
+  const confidenceColor = 
+    forecast.confidence === "high" ? "text-green-600" : 
+    forecast.confidence === "medium" ? "text-amber-600" : "text-gray-500";
+
+  return (
+    <div className="bg-white rounded-[2rem] border border-gray-300 shadow-sm overflow-hidden flex flex-col">
+      {/* Dark Header */}
+      <div className="bg-[#141414] p-6 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3">
+          <Bot size={20} className="text-white" />
+          <h3 className="text-base font-bold text-white">AI Market Estimate</h3>
+        </div>
+        <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-xl border border-white/10">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-300">Confidence:</span>
+          <span className={cn("text-[10px] font-bold uppercase tracking-widest flex items-center gap-1", confidenceColor)}>
+            <ConfidenceIcon size={12} /> {forecast.confidence}
+          </span>
+        </div>
+      </div>
+
+      <div className="p-6 lg:p-8 flex-1 flex flex-col gap-6">
+        
+        {/* Warning Banner for Low Confidence (Option 1 State) */}
+        {forecast.confidence === 'low' && (
+          <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+            <Info size={16} className="text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-800 font-medium leading-relaxed">
+              <strong>Estimation Caveat:</strong> This forecast is based on generalized market patterns. It is not currently backed by verified local comparable sales. Use as a directional guide only.
+            </p>
+          </div>
+        )}
+
+        {/* Top Metrics Row - Using Tildes for Approximation */}
+        <div className="grid grid-cols-3 gap-6 pb-6 border-b border-gray-300">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2">Projected ROI</p>
+            <p className="text-3xl font-bold text-[#141414] flex items-center gap-2">
+              ~{forecast.estimated_annual_roi_percent}%
+              <TrendingUp size={20} className="text-gray-400" />
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2">Rental Yield</p>
+            <p className="text-2xl font-bold text-gray-600">~{forecast.estimated_rental_yield_percent}%</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2">Appreciation</p>
+            <p className="text-2xl font-bold text-gray-600">~{forecast.estimated_appreciation_percent}%</p>
+          </div>
+        </div>
+
+        {/* Reasoning Block */}
+        <div>
+          <h4 className="text-[10px] font-bold uppercase tracking-widest text-[#141414] mb-3">Analyst Reasoning</h4>
+          <p className="text-sm text-gray-600 leading-relaxed font-medium">
+            {forecast.reasoning}
+          </p>
+        </div>
+
+        {/* Comparable Basis Block */}
+        <div className="bg-gray-50 p-5 rounded-xl border border-gray-300 mt-2">
+          <h4 className="text-[10px] font-bold uppercase tracking-widest text-[#141414] mb-2">Data Grounding</h4>
+          <p className="text-xs text-gray-500 leading-relaxed">
+            {forecast.comparable_basis}
+          </p>
+        </div>
+
+      </div>
+    </div>
+  );
+};
+// --- END ROI ASSESSMENT WIDGET ---
 
 export const PropertyDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -140,7 +301,7 @@ export const PropertyDetail: React.FC = () => {
     retry: 1
   });
 
-  const property = cacheData?.property;
+  const property = cacheData?.property as Property;
   const mediaItems = cacheData?.mediaItems || [];
   const signedImages = mediaItems.map(m => m.url);
 
@@ -200,7 +361,7 @@ export const PropertyDetail: React.FC = () => {
     mutationFn: async (s3Path: string) => {
       if (!property) throw new Error("Missing property");
       // Target direct backend deletion endpoint
-      return api.delete(`/v1/properties/${property.id}/images`, { data: { s3_path: s3Path } });
+      return api.delete(`/properties/${property.id}/images`, { data: { s3_path: s3Path } });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['property', id] });
@@ -209,12 +370,31 @@ export const PropertyDetail: React.FC = () => {
     onError: () => addNotification('error', 'Deletion Failed', 'Failed to remove image.')
   });
 
+  const deletePropertyMutation = useMutation({
+    mutationFn: async () => {
+      if (!property) throw new Error("Missing property");
+      return propertyApi.delete(property.id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['properties'] });
+      // Redirect back to properties portfolio view
+      navigate('/agent/properties');
+    },
+    onError: () => addNotification('error', 'Deletion Failed', 'Could not delete the listing.')
+  });
+
   const handleSaveChanges = () => {
     updateMutation.mutate({
       title: editForm.title, price: Number(editForm.price), location: editForm.location,
       bedrooms: Number(editForm.bedrooms), baths: Number(editForm.baths), sqft: Number(editForm.sqft),
       description: editForm.description, status: editForm.status
     });
+  };
+
+  const handleDeleteProperty = () => {
+    if (window.confirm("Are you sure you want to delete this listing? This action cannot be undone.")) {
+      deletePropertyMutation.mutate();
+    }
   };
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -297,9 +477,19 @@ export const PropertyDetail: React.FC = () => {
               </button>
             </>
           ) : (
-            <button onClick={handleEditToggle} className="cursor-pointer flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-[#141414] rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">
-              <Edit2 size={16} /> Edit Details
-            </button>
+            <>
+              <button 
+                onClick={handleDeleteProperty} 
+                disabled={deletePropertyMutation.isPending}
+                className="cursor-pointer flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm font-medium hover:bg-red-100 transition-colors disabled:opacity-50"
+              >
+                {deletePropertyMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />} 
+                Delete
+              </button>
+              <button onClick={handleEditToggle} className="cursor-pointer flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-[#141414] rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">
+                <Edit2 size={16} /> Edit Details
+              </button>
+            </>
           )}
           <button onClick={generatePDFBrochure} disabled={isGeneratingPDF} className="cursor-pointer flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-[#141414] rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">
             {isGeneratingPDF ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} Brochure
@@ -492,37 +682,44 @@ export const PropertyDetail: React.FC = () => {
 
         {/* Right Sidebar Column */}
         <div className="space-y-6" data-html2canvas-ignore>
-          <div className="sticky top-24 bg-white p-6 sm:p-8 rounded-[2rem] border border-gray-100 shadow-[0_20px_50px_rgba(0,0,0,0.03)]">
-            <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-2">Listed Price</p>
-            {isEditing ? (
-               <input type="number" value={editForm.price} onChange={e => setEditForm({...editForm, price: e.target.value})} className="w-full text-3xl font-black border-b border-gray-200 focus:outline-none pb-2 mb-8 text-[#141414]" placeholder="Enter price" />
-            ) : (
-               <h2 className="text-4xl sm:text-5xl font-black text-[#141414] tracking-tight mb-8">
-                 {formatCurrency(Number(property.price || 0))}
-               </h2>
-            )}
+          <div className="sticky top-24 space-y-6">
             
-            <div className="pt-6 border-t border-gray-100">
-              <h4 className="text-sm font-bold text-[#141414] mb-4">Log Direct Offer / Lead</h4>
-              {!leadSuccess ? (
-                <form onSubmit={handleCheckoutSubmit} className="space-y-4">
-                  <input required type="text" placeholder="Client Name" value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full p-3 border border-gray-200 text-[#141414] placeholder:text-gray-400 rounded-xl bg-gray-50 focus:bg-white focus:ring-1 focus:ring-[#141414] focus:outline-none transition-all text-sm font-medium" />
-                  <input required type="email" placeholder="Client Email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} className="w-full p-3 border border-gray-200 text-[#141414] placeholder:text-gray-400 rounded-xl bg-gray-50 focus:bg-white focus:ring-1 focus:ring-[#141414] focus:outline-none transition-all text-sm font-medium" />
-                  <input required type="tel" placeholder="Client Phone" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className="w-full p-3 border border-gray-200 text-[#141414] placeholder:text-gray-400 rounded-xl bg-gray-50 focus:bg-white focus:ring-1 focus:ring-[#141414] focus:outline-none transition-all text-sm font-medium" />
-                  <input type="number" placeholder="Offer Amount (Optional)" value={offerAmount} onChange={e => setOfferAmount(e.target.value)} className="w-full p-3 border border-gray-200 text-[#141414] placeholder:text-gray-400 rounded-xl bg-gray-50 focus:bg-white focus:ring-1 focus:ring-[#141414] focus:outline-none transition-all text-sm font-medium" />
-                  
-                  <button type="submit" disabled={leadMutation.isPending} className="cursor-pointer w-full py-3.5 bg-[#141414] text-white rounded-xl font-bold hover:bg-black transition-colors disabled:opacity-70 flex items-center justify-center gap-2 shadow-sm mt-2">
-                    {leadMutation.isPending ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />} Log Offer to Kanban
-                  </button>
-                </form>
+            <div className="bg-white p-6 sm:p-8 rounded-[2rem] border border-gray-100 shadow-[0_20px_50px_rgba(0,0,0,0.03)]">
+              <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-2">Listed Price</p>
+              {isEditing ? (
+                 <input type="number" value={editForm.price} onChange={e => setEditForm({...editForm, price: e.target.value})} className="w-full text-3xl font-black border-b border-gray-200 focus:outline-none pb-2 mb-8 text-[#141414]" placeholder="Enter price" />
               ) : (
-                <div className="bg-green-50 text-green-700 p-6 rounded-xl flex flex-col items-center text-center gap-3 border border-green-200">
-                  <CheckCircle size={32} />
-                  <p className="font-bold">Offer Logged Successfully</p>
-                  <button onClick={() => setLeadSuccess(false)} className="cursor-pointer text-sm font-semibold hover:underline mt-2">Submit another offer</button>
-                </div>
+                 <h2 className="text-4xl sm:text-5xl font-black text-[#141414] tracking-tight mb-8">
+                   {formatCurrency(Number(property.price || 0))}
+                 </h2>
               )}
+              
+              <div className="pt-6 border-t border-gray-100">
+                <h4 className="text-sm font-bold text-[#141414] mb-4">Log Direct Offer / Lead</h4>
+                {!leadSuccess ? (
+                  <form onSubmit={handleCheckoutSubmit} className="space-y-4">
+                    <input required type="text" placeholder="Client Name" value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full p-3 border border-gray-200 text-[#141414] placeholder:text-gray-400 rounded-xl bg-gray-50 focus:bg-white focus:ring-1 focus:ring-[#141414] focus:outline-none transition-all text-sm font-medium" />
+                    <input required type="email" placeholder="Client Email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} className="w-full p-3 border border-gray-200 text-[#141414] placeholder:text-gray-400 rounded-xl bg-gray-50 focus:bg-white focus:ring-1 focus:ring-[#141414] focus:outline-none transition-all text-sm font-medium" />
+                    <input required type="tel" placeholder="Client Phone" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className="w-full p-3 border border-gray-200 text-[#141414] placeholder:text-gray-400 rounded-xl bg-gray-50 focus:bg-white focus:ring-1 focus:ring-[#141414] focus:outline-none transition-all text-sm font-medium" />
+                    <input type="number" placeholder="Offer Amount (Optional)" value={offerAmount} onChange={e => setOfferAmount(e.target.value)} className="w-full p-3 border border-gray-200 text-[#141414] placeholder:text-gray-400 rounded-xl bg-gray-50 focus:bg-white focus:ring-1 focus:ring-[#141414] focus:outline-none transition-all text-sm font-medium" />
+                    
+                    <button type="submit" disabled={leadMutation.isPending} className="cursor-pointer w-full py-3.5 bg-[#141414] text-white rounded-xl font-bold hover:bg-black transition-colors disabled:opacity-70 flex items-center justify-center gap-2 shadow-sm mt-2">
+                      {leadMutation.isPending ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />} Log Offer to Kanban
+                    </button>
+                  </form>
+                ) : (
+                  <div className="bg-green-50 text-green-700 p-6 rounded-xl flex flex-col items-center text-center gap-3 border border-green-200">
+                    <CheckCircle size={32} />
+                    <p className="font-bold">Offer Logged Successfully</p>
+                    <button onClick={() => setLeadSuccess(false)} className="cursor-pointer text-sm font-semibold hover:underline mt-2">Submit another offer</button>
+                  </div>
+                )}
+              </div>
             </div>
+
+            {/* AI ROI Assessment Widget */}
+            <RoiAssessmentWidget property={property} />
+
           </div>
         </div>
       </div>
