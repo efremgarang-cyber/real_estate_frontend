@@ -7,10 +7,7 @@ import {
 import { cn } from "../../lib/utils";
 import { api } from "../../lib/api";
 import { supabase } from "../../lib/supabase";
-<<<<<<< HEAD
 import { AssistantWidget } from "@/src/components/chat/AssistantWidget";
-=======
->>>>>>> isaiah
 
 export const PublicListings = () => {
   const navigate = useNavigate();
@@ -349,6 +346,10 @@ export const PublicListings = () => {
     </div>
   );
 };
+
+/*const AssistantWidget = ({ contextData }: { contextData: any[] }) => {
+  return null;
+};*/
 
 const fallbackPropertiesIndex = [
   {

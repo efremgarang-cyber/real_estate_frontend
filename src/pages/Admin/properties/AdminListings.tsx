@@ -18,31 +18,26 @@ export const AdminListings: React.FC = () => {
 
   const { data: properties = [], isLoading, isError } = useQuery({
   queryKey: ["adminGlobalListingsGrid"],
-  queryFn: async () => {
-    // CHANGE THIS: Use the admin-specific property API method
-    const response = await api.get('/admin/properties'); 
-    
-    // Note: If using pagination, Laravel returns { data: [...], ... }
-    // If not paginated, it returns [...] directly. Adjust based on your API response.
-    const items = response.data.data || response.data || [];
-      return await Promise.all(
-        items.map(async (item: any) => {
-          let rawUrl = item?.images?.[0];
-          if (typeof rawUrl === "object") rawUrl = rawUrl.s3_path || rawUrl.url;
-
-          let signedImage = "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=1200";
-          if (rawUrl) {
-            try {
-              signedImage = await vaultApi.getSignedUrl(rawUrl);
-            } catch (err) {
-              console.error("MinIO image resolution error:", err);
-            }
-          }
-          return { ...item, _signedImage: signedImage };
-        })
-      );
-    }
-  });
+ queryFn: async () => {
+  const response = await api.get('/admin/properties');
+  
+  // LOG THIS: Check your browser console to see exactly what the API returns
+  console.log("Raw API Response:", response);
+  
+  // If the API returns { data: [...] }, this is the correct path
+  const items = response.data?.data ?? []; 
+  
+  if (!Array.isArray(items)) {
+    console.warn("Expected an array, but got:", items);
+    return [];
+  }
+  
+  return items.map((item: any) => ({
+      ...item,
+      _signedImage: item.images?.[0]?.url || "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=1200"
+  }));
+}
+});
 
   const filteredProperties = properties.filter((p: any) =>
     p.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||

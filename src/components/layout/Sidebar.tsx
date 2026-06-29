@@ -13,7 +13,7 @@ interface NavItem {
 interface SidebarProps {
   navItems: NavItem[];
   userInitials: string;
-  onOpenProfile: () => void; // FIX: Declared missing property hook
+  onOpenProfile: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ navItems, userInitials, onOpenProfile }) => {
@@ -96,7 +96,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ navItems, userInitials, onOpen
             isCollapsed ? "p-2 justify-center" : "p-4 gap-3"
           )}
         >
-          {/* Avatar Frame Container */}
           <div className="rounded-full bg-white dark:bg-[#0A0A0A] shadow-sm border border-gray-200 dark:border-gray-700 text-[#141414] dark:text-white flex items-center justify-center font-bold text-sm shrink-0 transition-all w-10 h-10 overflow-hidden">
             {user?.avatar_path ? (
               <img 
@@ -116,7 +115,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ navItems, userInitials, onOpen
             </div>
           )}
         </button>
-        </div>
+      </div>
     </aside>
   );
 };
