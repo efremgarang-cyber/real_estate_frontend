@@ -1,0 +1,4 @@
+0000000000000000000000000000000000000000 ff06cb0631e454e114c643ec6146c96fdd0d7418 efremgarang-cyber <efremgarang@gmail.com> 1779781683 +0300	WIP on main: 0d80f84 feat: update leads display
+ff06cb0631e454e114c643ec6146c96fdd0d7418 7a9b6061a9c73a9a4c721c7b36c1279c533304cd efremgarang-cyber <efremgarang@gmail.com> 1780036309 +0300	WIP on main: 2228ccd feat: complete frontend daraja status modal
+7a9b6061a9c73a9a4c721c7b36c1279c533304cd 31e005ea164d03806ac7913cd078620bd0968ffb efremgarang-cyber <efremgarang@gmail.com> 1780391683 +0300	WIP on main: 991d5b8 Complete payment integration, fix API services, and update PropertyCard components
+31e005ea164d03806ac7913cd078620bd0968ffb 6ab2ab1e322c7f9549f26d0f97c69148cab8d81f efremgarang-cyber <efremgarang@gmail.com> 1781251021 +0300	WIP on develop: 79d3ad8 feat: refine layout, sidebar, and tailwind configuration

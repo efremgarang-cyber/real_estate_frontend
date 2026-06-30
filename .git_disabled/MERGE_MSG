@@ -1,0 +1,5 @@
+Merge branch 'victor' of https://github.com/efremgarang-cyber/real_estate_frontend into garang
+
+# Conflicts:
+#	src/components/CloseDealModal.tsx
+#	src/routes.tsx

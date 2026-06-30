@@ -1,0 +1,10 @@
+search functionality
+client endpoint
+scanning functionality
+uploads
+caching: prevent calling the server each time you switch pages
+
+- When you deploy Makao to production, you must access your server via SSH, run crontab -e, and 
+add this exact line at the bottom (replacing the path with your actual application directory):
+
+    * * * * * cd /path-to-your-project && php artisan schedule:run >> /dev/null 2>&1
