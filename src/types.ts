@@ -85,12 +85,19 @@ export interface AuthResponse {
 // 3. Team & Agent Management
 // ==========================================
 
+export interface Agency {
+  id: number;
+  name: string;
+  location: string;
+  subscription_tier: string;
+}
+
 export interface Agent {
   id: number;
   agency_id: number;
   name: string;
   email: string;
-  role: 'agent';
+  role: string;
   created_at: string;
   updated_at: string;
 }
@@ -114,6 +121,7 @@ export interface PropertyImage {
   updated_at: string;
 }
 
+
 export interface Property {
   id: number;
   agency_id: number;
@@ -127,6 +135,8 @@ export interface Property {
   amenities: string[];
   status: PropertyStatus;
   images?: PropertyImage[] | string[]; // Backed by relationship or direct array serialization
+  agency?: Agency;
+  agent?: Agent;
   expires_at: string | null;
   created_at: string;
   updated_at: string;

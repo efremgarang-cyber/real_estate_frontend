@@ -1,27 +1,27 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { 
-  ArrowLeft, MapPin, BedDouble, Bath, Square, 
-  Check, Camera, Play, Loader2, ChevronRight, Share2 
+  ArrowLeft, BedDouble, Bath, Square, 
+  Camera, Play, Loader2, Share2 
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { api } from "../../lib/api"; 
 import { supabase } from "../../lib/supabase"; 
+import { Property, PropertyImage } from "../../types"; // Adjust path to your types file
 
 export const PublicPropertyDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
   const [isLoading, setIsLoading] = useState(true);
-  const [property, setProperty] = useState<any>(null);
-  const [similarProperties, setSimilarProperties] = useState<any[]>([]);
+  const [property, setProperty] = useState<Property | null>(null);
+  const [similarProperties, setSimilarProperties] = useState<Property[]>([]);
   const [activeMedia, setActiveMedia] = useState<string>("");
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
 
-  // Safely resolve the Supabase signed URL or public bucket URL
-  const resolveMediaSource = (media: any): string => {
+  const resolveMediaSource = (media: string | PropertyImage | any): string => {
     if (!media) return "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=1200";
-    const rawUrl = typeof media === 'string' ? media : (media.signed_url || media.s3_path || media.url);
+    const rawUrl = typeof media === 'string' ? media : (media.s3_path || media.signed_url || media.url);
     if (!rawUrl) return "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=1200";
     if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://') || rawUrl.startsWith('data:')) return rawUrl;
     const { data } = supabase.storage.from('user-files').getPublicUrl(rawUrl);
@@ -32,14 +32,14 @@ export const PublicPropertyDetails = () => {
     const fetchPropertyData = async () => {
       try {
         setIsLoading(true);
-        // 1. Fetch main property
         const response = await api.get(`/properties/${id}`);
-        const data = response.data?.data || response.data;
+        const data: Property = response.data?.data || response.data;
+        console.log("Property: ", data);
         setProperty(data);
         
-        // Flatten images
         let rawImages: any = data?.images || [];
         let allImages: any[] = [];
+        
         if (Array.isArray(rawImages)) {
           allImages = rawImages;
         } else if (rawImages !== null && typeof rawImages === 'object') {
@@ -56,18 +56,17 @@ export const PublicPropertyDetails = () => {
         setGalleryImages(imagesToDisplay);
         setActiveMedia(imagesToDisplay[0]);
 
-        // 2. Fetch similar properties (using the general endpoint for now, ideally you'd pass a filter)
         const allPropsRes = await api.get("/properties");
-        const allProps = allPropsRes.data?.data || allPropsRes.data;
-        // Filter out the current property and grab up to 4
-        setSimilarProperties((Array.isArray(allProps) ? allProps : fallbackSimilarProperties)
-          .filter(p => p.id !== id)
+        const allProps: Property[] = allPropsRes.data?.data || allPropsRes.data;
+        
+        setSimilarProperties((Array.isArray(allProps) ? allProps : fallbackSimilarProperties as unknown as Property[])
+          .filter(p => String(p.id) !== id)
           .slice(0, 4));
 
       } catch (error) {
         console.error("Failed to load property details:", error);
-        setProperty(fallbackProperty);
-        setSimilarProperties(fallbackSimilarProperties);
+        setProperty(fallbackProperty as unknown as Property);
+        setSimilarProperties(fallbackSimilarProperties as unknown as Property[]);
         const fallbackUrls = fallbackProperty.images.map(resolveMediaSource);
         setGalleryImages(fallbackUrls);
         setActiveMedia(fallbackUrls[0]);
@@ -92,8 +91,6 @@ export const PublicPropertyDetails = () => {
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#0A0A0A] font-sans pb-24 text-[#141414] dark:text-white">
-      
-      {/* Header */}
       <header className="bg-white/80 dark:bg-[#0A0A0A]/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-900 sticky top-0 z-40">
         <div className="mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link to="/properties" className="cursor-pointer flex items-center gap-2 group text-gray-500 dark:text-gray-400 hover:text-[#D4AF37] transition-colors">
@@ -107,13 +104,10 @@ export const PublicPropertyDetails = () => {
         </div>
       </header>
 
-      {/* Main Product Layout (Plantitude Split Style) */}
       <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 lg:mt-12">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 xl:gap-20">
           
-          {/* LEFT COLUMN: Media Gallery */}
           <div className="space-y-4">
-            {/* Main Viewer */}
             <div className="aspect-[4/3] bg-gray-50 dark:bg-[#111] rounded-2xl overflow-hidden relative">
               {activeMedia && (activeMedia.includes("video") || activeMedia.includes("mp4")) ? (
                 <div className="w-full h-full flex items-center justify-center bg-black text-white relative">
@@ -128,7 +122,6 @@ export const PublicPropertyDetails = () => {
               )}
             </div>
 
-            {/* Thumbnail Strip */}
             {galleryImages.length > 1 && (
               <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
                 {galleryImages.map((mediaSource: string, index: number) => (
@@ -154,29 +147,26 @@ export const PublicPropertyDetails = () => {
             )}
           </div>
 
-          {/* RIGHT COLUMN: Property Info & Actions */}
           <div className="flex flex-col">
-            {/* Title & Pricing Block */}
             <div className="border-b border-gray-100 dark:border-gray-900 pb-6 mb-6">
               <p className="text-[#D4AF37] text-xs font-bold tracking-widest uppercase mb-2">
-                {property.location}, {property.city}
+                {property.location}
               </p>
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#141414] dark:text-white leading-tight mb-4 tracking-tight">
                 {property.title}
               </h1>
               <div className="flex items-center gap-4">
                 <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
-                  {new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(property.price)}
+                  {new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(Number(property.price))}
                 </h2>
-                {property.status === 'active' && (
-                  <span className="px-2.5 py-1 bg-green-50 dark:bg-green-500/10 text-green-600 border border-green-200 dark:border-green-500/20 text-[10px] font-bold uppercase tracking-widest rounded-md">
+                {property.status?.toLowerCase() === 'active' && (
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-green-600">
                     In Stock
                   </span>
                 )}
               </div>
             </div>
 
-            {/* Architectural Specs */}
             <div className="grid grid-cols-3 gap-4 mb-8">
               <div className="bg-gray-50 dark:bg-[#111] p-4 rounded-xl flex flex-col items-center justify-center text-center">
                 <BedDouble size={20} className="text-[#D4AF37] mb-2" />
@@ -185,7 +175,7 @@ export const PublicPropertyDetails = () => {
               </div>
               <div className="bg-gray-50 dark:bg-[#111] p-4 rounded-xl flex flex-col items-center justify-center text-center">
                 <Bath size={20} className="text-[#D4AF37] mb-2" />
-                <span className="text-lg font-bold text-[#141414] dark:text-white">{property.baths ?? property.bathrooms ?? "-"}</span>
+                <span className="text-lg font-bold text-[#141414] dark:text-white">{property.baths ?? "-"}</span>
                 <span className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Baths</span>
               </div>
               <div className="bg-gray-50 dark:bg-[#111] p-4 rounded-xl flex flex-col items-center justify-center text-center">
@@ -195,7 +185,6 @@ export const PublicPropertyDetails = () => {
               </div>
             </div>
 
-            {/* Action Buttons */}
             <div className="space-y-3 mb-8">
               <button 
                 onClick={() => navigate(`/properties/${id}/offer`)}
@@ -213,7 +202,6 @@ export const PublicPropertyDetails = () => {
               </div>
             </div>
 
-            {/* Description Accordion (Expanded by default) */}
             <div className="border-t border-gray-100 dark:border-gray-900 pt-6">
               <h3 className="text-xs font-bold text-[#141414] dark:text-white uppercase tracking-widest mb-4">Description</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed whitespace-pre-line">
@@ -221,7 +209,6 @@ export const PublicPropertyDetails = () => {
               </p>
             </div>
 
-            {/* Amenities Section */}
             {property.amenities && property.amenities.length > 0 && (
               <div className="border-t border-gray-100 dark:border-gray-900 pt-6 mt-6">
                 <h3 className="text-xs font-bold text-[#141414] dark:text-white uppercase tracking-widest mb-4">Features</h3>
@@ -236,7 +223,6 @@ export const PublicPropertyDetails = () => {
               </div>
             )}
             
-            {/* Agency Source */}
             <div className="mt-auto pt-8 flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-[#222] flex items-center justify-center text-xs font-bold text-[#141414] dark:text-white">
                 {property.agency?.name?.[0] || "A"}
@@ -249,7 +235,6 @@ export const PublicPropertyDetails = () => {
           </div>
         </div>
 
-        {/* RELATED PRODUCTS / SIMILAR PROPERTIES SECTION */}
         {similarProperties.length > 0 && (
           <div className="mt-24 pt-16 border-t border-gray-100 dark:border-gray-900">
             <div className="flex items-center justify-between mb-8">
@@ -258,27 +243,36 @@ export const PublicPropertyDetails = () => {
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {similarProperties.map((simProp) => (
-                <div 
-                  key={simProp.id}
-                  onClick={() => navigate(`/properties/${simProp.id}`)}
-                  className="cursor-pointer group"
-                >
-                  <div className="aspect-[4/3] bg-gray-100 dark:bg-[#111] relative overflow-hidden rounded-xl mb-4">
-                    <img 
-                      src={resolveMediaSource(simProp.images?.main || (Array.isArray(simProp.images) ? simProp.images[0] : null))} 
-                      alt={simProp.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out"
-                    />
+              {similarProperties.map((simProp) => {
+                let simMainImg = null;
+                if (Array.isArray(simProp.images)) {
+                  simMainImg = simProp.images[0];
+                } else if (simProp.images && typeof simProp.images === 'object') {
+                  simMainImg = (simProp.images as any).main;
+                }
+                
+                return (
+                  <div 
+                    key={simProp.id}
+                    onClick={() => navigate(`/properties/${simProp.id}`)}
+                    className="cursor-pointer group"
+                  >
+                    <div className="aspect-[4/3] bg-gray-100 dark:bg-[#111] relative overflow-hidden rounded-xl mb-4">
+                      <img 
+                        src={resolveMediaSource(simMainImg)} 
+                        alt={simProp.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out"
+                      />
+                    </div>
+                    <h4 className="text-sm font-bold text-[#141414] dark:text-gray-100 line-clamp-1 group-hover:text-[#D4AF37] transition-colors uppercase tracking-wide">
+                      {simProp.title}
+                    </h4>
+                    <p className="text-sm font-black text-[#D4AF37] tracking-tight mt-1">
+                      {new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(Number(simProp.price))}
+                    </p>
                   </div>
-                  <h4 className="text-sm font-bold text-[#141414] dark:text-gray-100 line-clamp-1 group-hover:text-[#D4AF37] transition-colors uppercase tracking-wide">
-                    {simProp.title}
-                  </h4>
-                  <p className="text-sm font-black text-[#D4AF37] tracking-tight mt-1">
-                    {new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(simProp.price)}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -289,15 +283,13 @@ export const PublicPropertyDetails = () => {
 
 // --- MOCK FALLBACK DATA ---
 const fallbackProperty = {
-  id: "prop-123",
+  id: 123,
   title: "Modern Architectural Villa",
-  price: 85000000,
+  price: "85000000",
   location: "Runda",
-  city: "Nairobi",
-  type: "For Sale",
-  status: "active",
+  status: "Active",
   bedrooms: 5,
-  bathrooms: 6,
+  baths: 6,
   sqft: 6500,
   description: "Experience unparalleled luxury in this modern architectural masterpiece located in the heart of Runda. This property features floor-to-ceiling windows, a state-of-the-art smart home system, a private infinity pool, and an expansive manicured garden.\n\nDesigned for both grand entertaining and intimate family living, the open-concept layout flows seamlessly from the gourmet chef's kitchen to the sun-drenched living areas.",
   amenities: [
@@ -314,15 +306,15 @@ const fallbackProperty = {
 
 const fallbackSimilarProperties = [
   {
-    id: "prop-456",
+    id: 456,
     title: "Minimalist Penthouse",
-    price: 45000000,
+    price: "45000000",
     images: { main: "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&q=80&w=600" }
   },
   {
-    id: "prop-789",
+    id: 789,
     title: "Serene Garden Estate",
-    price: 120000000,
+    price: "120000000",
     images: { main: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=600" }
   }
 ];

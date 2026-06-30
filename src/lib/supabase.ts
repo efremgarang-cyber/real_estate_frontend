@@ -1,17 +1,10 @@
-// Fake placeholder client to stop the app from crashing
-export const supabase = {
-  from: () => ({
-    select: async () => ({ data: [], error: null }),
-    insert: async () => ({ data: null, error: null }),
-    update: async () => ({ data: null, error: null }),
-    delete: async () => ({ data: null, error: null }),
-  }),
-  auth: {
-    signUp: async () => ({ data: {}, error: null }),
-    signInWithPassword: async () => ({ data: {}, error: null }),
-    signOut: async () => ({ error: null }),
-    onAuthStateChange: (callback: any) => {
-      return { data: { subscription: { unsubscribe: () => {} } } };
-    },
-  },
-} as any;
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+    console.warn('Supabase credentials missing. Storage functions will fail.');
+}
+
+export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '');

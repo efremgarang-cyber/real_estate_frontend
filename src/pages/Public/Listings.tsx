@@ -17,9 +17,19 @@ export const PublicListings = () => {
   // Filtering states
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<string>("All");
-  const [maxPrice, setMaxPrice] = useState<string>("150000000"); // Default high value for slider
+  const [maxPrice, setMaxPrice] = useState<string>("150000000"); 
   const [minBedrooms, setMinBedrooms] = useState<string>("");
+  const [selectedAgency, setSelectedAgency] = useState<string>("All");
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+
+  // NEW: Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 9;
+
+  // Reset to page 1 whenever any filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedType, maxPrice, minBedrooms, selectedAgency]);
 
   useEffect(() => {
     const fetchAllListings = async () => {
@@ -38,6 +48,11 @@ export const PublicListings = () => {
     fetchAllListings();
   }, []);
 
+  // Dynamically extract unique agencies from fetched properties
+  const uniqueAgencies = ["All", ...Array.from(
+    new Set(properties.map(p => p.agency?.name || "Independent Agent"))
+  )].sort();
+
   // ACTIVE FILTERING LOGIC
   const filteredProperties = properties.filter((item) => {
     const searchLower = searchQuery.toLowerCase();
@@ -47,16 +62,22 @@ export const PublicListings = () => {
       (item.location?.toLowerCase() || "").includes(searchLower) ||
       (item.city?.toLowerCase() || "").includes(searchLower);
       
-    // Added case-insensitive matching so "Active" matches "active"
     const matchesType = selectedType === "All" || (item.status || "").toLowerCase() === selectedType.toLowerCase();
     
     const matchesPrice = !maxPrice || Number(item.price) <= Number(maxPrice);
     const matchesBeds = !minBedrooms || Number(item.bedrooms) >= Number(minBedrooms);
+    
+    const matchesAgency = selectedAgency === "All" || (item.agency?.name || "Independent Agent") === selectedAgency;
 
-    return matchesSearch && matchesType && matchesPrice && matchesBeds;
+    return matchesSearch && matchesType && matchesPrice && matchesBeds && matchesAgency;
   });
 
-  // Handle both the new Object format and legacy arrays
+  const totalPages = Math.ceil(filteredProperties.length / ITEMS_PER_PAGE);
+  const currentProperties = filteredProperties.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   const resolvePropertyImage = (property: any): string => {
     const fallbackImage = "https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=600";
     
@@ -81,7 +102,6 @@ export const PublicListings = () => {
   return (
     <div className="min-h-screen bg-white dark:bg-[#0A0A0A] font-sans pb-24 text-[#141414] dark:text-white">
       
-      {/* Navbar */}
       <header className="fixed w-full top-0 z-50 bg-black/30 backdrop-blur-lg border-b border-white/10">
         <div className="mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link to={"/"} className="cursor-pointer flex items-center gap-2">
@@ -96,14 +116,13 @@ export const PublicListings = () => {
         </div>
       </header>
 
-      {/* Hero Section */}
-      <div className="relative sm:h-80 lg:h-[400px] w-full overflow-hidden">
-        <img 
-          src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80&w=2000" 
-          alt="Premium Architecture" 
+      <div className="relative h-[320px] sm:h-[420px] lg:h-[500px] w-full overflow-hidden">
+        <img
+          src="/makao-properties-public.jpg"
+          alt="MakaoPropertiesPublic"
           className="w-full h-full object-cover"
+          style={{ objectPosition: '50% 10%' }}
         />
-        {/* Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#141414]/90 via-[#141414]/40 to-transparent flex items-end pb-12">
           <div className="mx-auto px-4 sm:px-6 lg:px-8 w-full max-w-[1640px]">
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight drop-shadow-lg">
@@ -118,24 +137,21 @@ export const PublicListings = () => {
 
       <main className="max-w-[1640px] mx-auto px-4 sm:px-6 lg:px-8 mt-8 lg:mt-12 flex flex-col lg:flex-row gap-10">
         
-        {/* Mobile Filter Toggle */}
         <div className="lg:hidden flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-4">
           <button
             onClick={() => setIsMobileFiltersOpen(!isMobileFiltersOpen)}
-            className="flex items-center gap-2 text-sm font-bold text-[#141414] dark:text-white"
+            className="cursor-pointer flex items-center gap-2 text-sm font-bold text-[#141414] dark:text-white"
           >
             <SlidersHorizontal size={16} /> Filters
           </button>
           <span className="text-xs font-bold text-gray-400">{filteredProperties.length} listings</span>
         </div>
 
-        {/* LEFT SIDEBAR: FILTERS */}
         <aside className={cn(
           "w-full lg:w-64 shrink-0 space-y-8 transition-all duration-300",
           isMobileFiltersOpen ? "block" : "hidden lg:block"
         )}>
           
-          {/* Keyword Search */}
           <div>
             <h3 className="text-xs font-bold uppercase tracking-widest text-[#141414] dark:text-white mb-4 border-b border-gray-100 dark:border-gray-800 pb-2">
               Search
@@ -152,7 +168,6 @@ export const PublicListings = () => {
             </div>
           </div>
 
-          {/* Price Range Slider */}
           <div>
             <div className="flex items-center justify-between mb-4 border-b border-gray-100 dark:border-gray-800 pb-2">
               <h3 className="text-xs font-bold uppercase tracking-widest text-[#141414] dark:text-white">Price</h3>
@@ -172,7 +187,6 @@ export const PublicListings = () => {
             </p>
           </div>
 
-          {/* Status / Availability */}
           <div>
             <h3 className="text-xs font-bold uppercase tracking-widest text-[#141414] dark:text-white mb-4 border-b border-gray-100 dark:border-gray-800 pb-2">
               Availability
@@ -182,7 +196,7 @@ export const PublicListings = () => {
                 <label 
                   key={type} 
                   className="flex items-center gap-3 cursor-pointer group"
-                  onClick={() => setSelectedType(type)} // <--- FIX: Added onClick to trigger state change
+                  onClick={() => setSelectedType(type)} 
                 >
                   <div className={cn(
                     "w-4 h-4 rounded border flex items-center justify-center transition-colors",
@@ -198,7 +212,6 @@ export const PublicListings = () => {
             </div>
           </div>
 
-          {/* Bedrooms / Size */}
           <div>
             <div className="flex items-center justify-between mb-4 border-b border-gray-100 dark:border-gray-800 pb-2">
               <h3 className="text-xs font-bold uppercase tracking-widest text-[#141414] dark:text-white">Bedrooms</h3>
@@ -215,7 +228,7 @@ export const PublicListings = () => {
                 <label 
                   key={bed.label} 
                   className="flex items-center gap-3 cursor-pointer group"
-                  onClick={() => setMinBedrooms(bed.value)} // <--- FIX: Added onClick to trigger state change
+                  onClick={() => setMinBedrooms(bed.value)} 
                 >
                   <div className={cn(
                     "w-4 h-4 rounded border flex items-center justify-center transition-colors",
@@ -230,12 +243,27 @@ export const PublicListings = () => {
               ))}
             </div>
           </div>
+
+          {/* New Agency Filter */}
+          <div>
+            <div className="flex items-center justify-between mb-4 border-b border-gray-100 dark:border-gray-800 pb-2">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-[#141414] dark:text-white">Agency</h3>
+              <button onClick={() => setSelectedAgency("All")} className="text-[10px] text-gray-400 hover:text-[#D4AF37] cursor-pointer">Reset</button>
+            </div>
+            <select
+              value={selectedAgency}
+              onChange={(e) => setSelectedAgency(e.target.value)}
+              className="w-full bg-gray-50 dark:bg-[#111] border-none rounded-xl focus:outline-none focus:ring-1 focus:ring-[#D4AF37] text-sm text-[#141414] dark:text-white py-3 px-4 cursor-pointer"
+            >
+              {uniqueAgencies.map((agencyName) => (
+                <option key={agencyName} value={agencyName}>{agencyName}</option>
+              ))}
+            </select>
+          </div>
         </aside>
 
-        {/* RIGHT MAIN CONTENT: GRID */}
         <div className="flex-1">
           
-          {/* Top Control Bar */}
           <div className="hidden lg:flex justify-between items-center mb-8 pb-4 border-b border-gray-100 dark:border-gray-800">
             <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
               {filteredProperties.length} Products
@@ -255,7 +283,6 @@ export const PublicListings = () => {
             </div>
           </div>
 
-          {/* Grid Content */}
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-32 text-gray-400">
               <Loader2 size={28} className="animate-spin mb-3 text-[#D4AF37]" />
@@ -264,37 +291,46 @@ export const PublicListings = () => {
           ) : filteredProperties.length === 0 ? (
             <div className="text-center py-24 border border-dashed border-gray-200 dark:border-gray-800 rounded-2xl">
               <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">No matches found</p>
-              <button onClick={() => {setMaxPrice("150000000"); setMinBedrooms(""); setSelectedType("All"); setSearchQuery("");}} className="mt-4 text-sm font-bold text-[#D4AF37] hover:underline cursor-pointer">Clear all filters</button>
+              <button 
+                onClick={() => {
+                  setMaxPrice("150000000"); 
+                  setMinBedrooms(""); 
+                  setSelectedType("All"); 
+                  setSearchQuery("");
+                  setSelectedAgency("All");
+                }} 
+                className="mt-4 text-sm font-bold text-[#D4AF37] hover:underline cursor-pointer"
+              >
+                Clear all filters
+              </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-10">
-              {filteredProperties.map((property) => (
+              {currentProperties.map((property) => (
                 <div 
                   key={property.id}
                   onClick={() => navigate(`/properties/${property.id}`)}
                   className="cursor-pointer group flex flex-col h-full"
                 >
-                  {/* Clean, Sharp Image (Plantitude Style) */}
                   <div className="aspect-[4/3] bg-gray-100 dark:bg-[#111] relative overflow-hidden shrink-0 mb-4 rounded-xl">
                     <img 
                       src={resolvePropertyImage(property)} 
                       alt={property.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out"
                     />
-                    {(property.status || "").toLowerCase() === 'active' && (
-                      <div className="absolute top-3 left-3">
-                        <span className="px-2 py-1 bg-[#D4AF37] text-white text-[9px] font-black uppercase tracking-widest rounded shadow-sm">
-                          Active
-                        </span>
-                      </div>
-                    )}
                   </div>
 
-                  {/* Minimalist Info Payload */}
                   <div className="flex flex-col flex-1">
-                    <h3 className="text-sm font-bold text-[#141414] dark:text-gray-100 line-clamp-1 group-hover:text-[#D4AF37] transition-colors uppercase tracking-wide">
-                      {property.title}
-                    </h3>
+                    <div className="flex items-center justify-between mb-1">
+                      <h3 className="text-sm font-bold text-[#141414] dark:text-gray-100 line-clamp-1 group-hover:text-[#D4AF37] transition-colors uppercase tracking-wide">
+                        {property.title}
+                      </h3>
+                      {(property.status || "").toLowerCase() === 'active' && (
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-[#D4AF37]">
+                          Active
+                        </span>
+                      )}
+                    </div>
                     
                     <div className="flex items-center justify-between mt-1 mb-3">
                       <p className="text-sm font-black text-[#D4AF37] tracking-tight">
@@ -326,13 +362,40 @@ export const PublicListings = () => {
             </div>
           )}
 
-          {/* Simple Pagination Footer */}
-          {!isLoading && filteredProperties.length > 0 && (
+          {/* Dynamic Pagination Footer */}
+          {!isLoading && totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 mt-16 pt-8 border-t border-gray-100 dark:border-gray-900">
-              <button className="cursor-pointer w-8 h-8 flex items-center justify-center rounded-full bg-[#141414] text-white dark:bg-white dark:text-[#141414] text-xs font-bold">1</button>
-              <button className="cursor-pointer w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-[#141414] dark:hover:text-white text-xs font-bold transition-colors">2</button>
-              <span className="text-gray-400">...</span>
-              <button className="cursor-pointer flex items-center gap-1 px-4 py-2 text-xs font-bold uppercase tracking-widest text-[#141414] dark:text-white hover:text-[#D4AF37] dark:hover:text-[#D4AF37] transition-colors">
+              <button 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1 px-4 py-2 text-xs font-bold uppercase tracking-widest text-[#141414] dark:text-white hover:text-[#D4AF37] dark:hover:text-[#D4AF37] transition-colors"
+              >
+                Prev
+              </button>
+
+              {Array.from({ length: totalPages }).map((_, idx) => {
+                const page = idx + 1;
+                return (
+                  <button 
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={cn(
+                      "cursor-pointer w-8 h-8 flex items-center justify-center rounded-full text-xs font-bold transition-colors",
+                      currentPage === page 
+                        ? "bg-[#141414] text-white dark:bg-white dark:text-[#141414]" 
+                        : "text-gray-400 hover:text-[#141414] dark:hover:text-white"
+                    )}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+
+              <button 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1 px-4 py-2 text-xs font-bold uppercase tracking-widest text-[#141414] dark:text-white hover:text-[#D4AF37] dark:hover:text-[#D4AF37] transition-colors"
+              >
                 Next <ChevronRight size={14} />
               </button>
             </div>
@@ -340,16 +403,11 @@ export const PublicListings = () => {
         </div>
       </main>
 
-      {/* --- INTEGRATED ASSISTANT --- */}
       <AssistantWidget contextData={filteredProperties} />
       
     </div>
   );
 };
-
-/*const AssistantWidget = ({ contextData }: { contextData: any[] }) => {
-  return null;
-};*/
 
 const fallbackPropertiesIndex = [
   {
