@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Sidebar } from "./Sidebar";
 import { MobileMenu } from "./MobileMenu";
 import { UserProfileModal } from "../UserProfileModal";
-import { ChatWidget } from "../chat/ChatWidget"; 
+import { AssistantWidget } from "../chat/AssistantWidget";
 
 const agentNavItems = [
   { name: "Overview", href: "/agent/dashboard", icon: BarChart3 },
@@ -85,7 +85,7 @@ export const AgentLayout: React.FC = () => {
       </main>
 
       {/* Integrated Live Communication Layer */}
-      <ChatWidget />
+      <AssistantWidget />
 
       {/* Responsive Mobile Sheet Dropdown Drawer */}
       <AnimatePresence>
