@@ -1,37 +1,57 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion'; 
-import { 
-  Check, 
-  Shield, 
-  FileCheck, 
-  Home, 
-  AlertCircle, 
-  CreditCard, 
-  Search, 
+import { motion } from 'framer-motion';
+import {
+  Check,
+  Shield,
+  FileCheck,
+  Home,
+  AlertCircle,
+  CreditCard,
+  Search,
   CheckCircle2,
   LucideIcon
 } from 'lucide-react';
 import { cn, formatCurrency } from '../../lib/utils';
 import { escrowApi } from '../../api/escrow';
-import { EscrowWithProgress } from '../../types'; // Unified types system
-import { Skeleton } from '../ui/skeleton'; 
+import { Skeleton } from '../ui/skeleton';
+
+// Inline type definition (since we don't have src/types/index.ts)
+interface EscrowWithProgress {
+  escrow: {
+    id: number;
+    clientName: string;
+    client_email: string;
+    providerName: string;
+    provider_email: string;
+    provider_phone: string;
+    propertyTitle: string;
+    amount: number;
+    status: string;
+    updated_at: string;
+    payment_reference: string;
+  };
+  progress: number;
+  total_paid: number;
+  remaining: number;
+  is_fully_funded: boolean;
+}
 
 interface EscrowProgressTrackerProps {
   escrowId: number;
   onPaymentClick?: (escrow: EscrowWithProgress) => void;
 }
 
-// 1. Core Component Layout Visual Presets
+// Stage configurations
 const stageConfig = {
-  pending_funding: { label: 'Awaiting Payment', icon: CreditCard, color: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-200' },
-  funded: { label: 'Funds Secured', icon: Shield, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' },
+  pending_payment: { label: 'Awaiting Payment', icon: CreditCard, color: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-200' },
+  held: { label: 'Funds Secured', icon: Shield, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' },
   inspection: { label: 'Inspection Period', icon: Home, color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-200' },
-  closing: { label: 'Closing Process', icon: FileCheck, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200' },
+  released: { label: 'Released', icon: FileCheck, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200' },
   completed: { label: 'Completed', icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200' },
+  refunded: { label: 'Refunded', icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200' },
   disputed: { label: 'Disputed', icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200' },
 };
 
-// 2. Map backend-defined string keys cleanly to matching professional Lucide components
 const backendIconMap: Record<string, LucideIcon> = {
   'dollar-sign': CreditCard,
   'lock': Shield,
@@ -47,9 +67,9 @@ export const EscrowProgressTracker: React.FC<EscrowProgressTrackerProps> = ({ es
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // 👇 Guard Clause: Prevent API calls if the ID is falsy or uninitialized
     if (!escrowId || escrowId === 0) {
       setLoading(false);
+      setError('No escrow selected');
       return;
     }
     fetchData();
@@ -59,12 +79,17 @@ export const EscrowProgressTracker: React.FC<EscrowProgressTrackerProps> = ({ es
     try {
       setLoading(true);
       setError(null);
-      
-      // Read responses directly without appending duplicate .data structures
-      const [resolvedEscrow, resolvedTimeline] = await Promise.all([
-        escrowApi.getById(escrowId) as Promise<EscrowWithProgress>,
-        escrowApi.getTimeline(escrowId) as Promise<any>
-      ]);
+
+      // Fetch escrow data using getById
+      const resolvedEscrow = await escrowApi.getById(escrowId) as EscrowWithProgress;
+
+      // Try to fetch timeline, but ignore if it fails
+      let resolvedTimeline = null;
+      try {
+        resolvedTimeline = await escrowApi.getTimeline(escrowId);
+      } catch {
+        // Timeline not available
+      }
 
       setDataWrapper(resolvedEscrow);
       setTimeline(resolvedTimeline);
@@ -80,30 +105,33 @@ export const EscrowProgressTracker: React.FC<EscrowProgressTrackerProps> = ({ es
     return <EscrowProgressSkeleton />;
   }
 
-  // Verify structural validity of internal layout params
   if (error || !dataWrapper || !dataWrapper.escrow) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
         <AlertCircle className="mx-auto text-red-500 mb-2" size={32} />
         <p className="text-red-600 font-medium">{error || 'Escrow not found'}</p>
+        <button
+          onClick={fetchData}
+          className="mt-3 px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm hover:bg-red-200 transition"
+        >
+          Retry
+        </button>
       </div>
     );
   }
 
-  // Safely unwrap metrics data layout parameters
   const { escrow, progress, total_paid, remaining, is_fully_funded } = dataWrapper;
 
-  // Prevent NaN values by parsing potential backend decimal string expressions
   const safeTotalAmount = typeof escrow.amount === 'string' ? parseFloat(escrow.amount) : escrow.amount;
   const numericTotalAmount = isNaN(safeTotalAmount) ? 0 : safeTotalAmount;
   const numericTotalPaid = typeof total_paid === 'string' ? parseFloat(total_paid) : total_paid || 0;
   const numericRemaining = typeof remaining === 'string' ? parseFloat(remaining) : remaining || 0;
 
-  const currentStage = stageConfig[escrow.status as keyof typeof stageConfig] || stageConfig.pending_funding;
+  const currentStage = stageConfig[escrow.status as keyof typeof stageConfig] || stageConfig.pending_payment;
 
   return (
     <div className="space-y-6">
-      {/* Header Info Section */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Escrow Status</span>
@@ -117,7 +145,7 @@ export const EscrowProgressTracker: React.FC<EscrowProgressTrackerProps> = ({ es
         </div>
       </div>
 
-      {/* Progress Metric Track */}
+      {/* Progress Bar */}
       <div>
         <div className="flex justify-between text-sm mb-2">
           <span className="text-gray-500">Progress</span>
@@ -133,7 +161,7 @@ export const EscrowProgressTracker: React.FC<EscrowProgressTrackerProps> = ({ es
         </div>
       </div>
 
-      {/* Financial Matrix Grid Layout */}
+      {/* Financial Summary */}
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-white rounded-2xl p-4 text-center border border-gray-100 shadow-sm">
           <p className="text-xs text-gray-500 mb-1">Total Amount</p>
@@ -149,22 +177,21 @@ export const EscrowProgressTracker: React.FC<EscrowProgressTrackerProps> = ({ es
         </div>
       </div>
 
-      {/* Dynamic Professional Timeline Section */}
-      {timeline && timeline.stages && (
+      {/* Timeline (conditional) */}
+      {timeline && timeline.stages && timeline.stages.length > 0 && (
         <div className="mt-6 border-t border-gray-100 pt-6">
           <h4 className="text-sm font-semibold text-gray-700 mb-4">Transaction Timeline</h4>
           <div className="space-y-4">
             {timeline.stages.map((stage: any) => {
               const LiveStageIcon = backendIconMap[stage.icon] || CreditCard;
-              
               return (
                 <div key={stage.stage} className="flex items-start gap-3.5 group">
                   <div className={cn(
                     "w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors duration-200 mt-0.5",
-                    stage.completed 
-                      ? "bg-green-500 text-white" 
-                      : stage.active 
-                        ? "bg-[#141414] text-white" 
+                    stage.completed
+                      ? "bg-green-500 text-white"
+                      : stage.active
+                        ? "bg-[#141414] text-white"
                         : "bg-gray-100 text-gray-400 border border-gray-200"
                   )}>
                     {stage.completed ? (
@@ -191,8 +218,8 @@ export const EscrowProgressTracker: React.FC<EscrowProgressTrackerProps> = ({ es
         </div>
       )}
 
-      {/* M-PESA / STK Push Payment Action Trigger */}
-      {numericRemaining > 0 && escrow.status !== 'disputed' && (
+      {/* Payment Button */}
+      {numericRemaining > 0 && escrow.status !== 'disputed' && escrow.status !== 'refunded' && (
         <button
           onClick={() => onPaymentClick?.(dataWrapper)}
           className="w-full bg-[#141414] text-white py-3 rounded-xl font-medium hover:bg-black transition-colors flex items-center justify-center gap-2 shadow-sm"
@@ -202,8 +229,8 @@ export const EscrowProgressTracker: React.FC<EscrowProgressTrackerProps> = ({ es
         </button>
       )}
 
-      {/* Automated Milestone Update Banner */}
-      {is_fully_funded && escrow.status === 'funded' && (
+      {/* Fully Funded Banner */}
+      {is_fully_funded && (escrow.status === 'held' || escrow.status === 'inspection') && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
           <CheckCircle2 className="text-green-600 shrink-0" size={20} />
           <p className="text-sm text-green-700 font-medium">Escrow fully funded! Moving to inspection verification period.</p>
@@ -213,6 +240,7 @@ export const EscrowProgressTracker: React.FC<EscrowProgressTrackerProps> = ({ es
   );
 };
 
+// Skeleton loading component
 const EscrowProgressSkeleton: React.FC = () => {
   return (
     <div className="space-y-6 animate-pulse">

@@ -6,6 +6,7 @@ interface DepositModalProps {
   isOpen: boolean;
   onClose: () => void;
   onInitializeDeposit: (amount: number) => Promise<string | null>;
+  escrowId?: number;
 }
 
 export const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose, onInitializeDeposit }) => {
@@ -15,33 +16,33 @@ export const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose, onI
 
   if (!isOpen) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError(null);
 
-    const parsedAmount = parseFloat(amount);
-    if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) {
-      setError('Please enter a valid amount greater than 0.');
-      return;
-    }
+  const parsedAmount = parseFloat(amount);
+  if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) {
+    setError('Please enter a valid amount greater than 0.');
+    return;
+  }
 
-    setLoading(true);
-    try {
-      const paymentUrl = await onInitializeDeposit(parsedAmount);
-      if (paymentUrl) {
-        // Opens Paystack checkout securely in a brand new tab
-        window.open(paymentUrl, '_blank', 'noopener,noreferrer');
-        onClose(); 
-        setAmount('');
-      } else {
-        setError('Could not retrieve payment link. Check backend server connection.');
-      }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred while initializing transaction.');
-    } finally {
-      setLoading(false);
+  setLoading(true);
+  try {
+    // Pass escrowId to the callback
+    const paymentUrl = await onInitializeDeposit(parsedAmount, escrowId);
+    if (paymentUrl) {
+      window.open(paymentUrl, '_blank', 'noopener,noreferrer');
+      onClose(); 
+      setAmount('');
+    } else {
+      setError('Could not retrieve payment link. Check backend server connection.');
     }
-  };
+  } catch (err: any) {
+    setError(err.message || 'An error occurred while initializing transaction.');
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

@@ -1,96 +1,103 @@
-// 📁 File: src/api/escrow.ts
-//const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api/v1';
-// 📁 File: src/api/escrow.ts
+import axios from 'axios';
 
-// ⚡ Replace 'makao_backend_folder' with the actual folder name of your Laravel app inside htdocs
-const API_BASE = 'http://127.0.0.1:8000/api/v1';
-// Helper to handle fetch responses safely without parsing HTML errors as JSON
-const handleResponse = async (response: Response) => {
-  if (!response.ok) {
-    const errorText = await response.text();
-    let errorMessage = 'Request failed';
-    try {
-      const errorJson = JSON.parse(errorText);
-      errorMessage = errorJson.error || errorJson.message || errorMessage;
-    } catch {
-      errorMessage = `Server Error (${response.status}): Path endpoint mismatch or backend offline.`;
-    }
-    throw new Error(errorMessage);
+// API base URL from environment
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  },
+  withCredentials: true,
+});
+
+// Add Bearer token if available
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-  return await response.json();
-};
+  return config;
+});
 
 export const escrowApi = {
-  // Get all escrow agreements
-  getAll: async () => {
-    // Fixed: Ensure no trailing slash or path mismatch is causing the 404 in image_f1b13c.png
-    const res = await fetch(`${API_BASE}/escrow`);
-    return await handleResponse(res);
+  /**
+   * Fetch all escrow transactions (used in the table)
+   */
+  async getAll() {
+    const response = await apiClient.get('/escrow');
+    return response.data;
   },
 
-  // Initialize a wallet or general platform deposit via Paystack
-  initializeDeposit: async (payload: { amount: number; email: string }) => {
-    const res = await fetch(`${API_BASE}/deposit/initialize`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    return await handleResponse(res);
+  /**
+   * Fetch a single escrow by ID (used in the progress tracker)
+   */
+  async getById(id: string | number) {
+    const response = await apiClient.get(`/escrow/${id}`);
+    return response.data;
   },
 
-  // Initialize escrow and get Paystack payment link
-  initialize: async (payload: {
+  /**
+   * Fetch timeline for an escrow – if your backend doesn't have this,
+   * return null so the component handles it gracefully.
+   */
+  async getTimeline(id: string | number) {
+    try {
+      const response = await apiClient.get(`/escrow/${id}/timeline`);
+      return response.data;
+    } catch {
+      // Timeline not implemented – return null
+      return null;
+    }
+  },
+
+  /**
+   * Initialize a new Escrow Agreement and get Paystack URL
+   * Accepts optional escrowId for additional payments
+   */
+  async initialize(data: {
     clientEmail: string;
     providerEmail: string;
     providerPhone: string;
     amount: number;
     description?: string;
-  }) => {
-    const res = await fetch(`${API_BASE}/escrow`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    return await handleResponse(res);
+    escrowId?: string | number; // for additional payments
+    leadId?: string;            // to track pipeline
+  }) {
+    const response = await apiClient.post('/escrow', data);
+    return response.data;
   },
 
-  // Release funds (transfer to provider)
-  release: async (escrowId: string | number) => {
-    const res = await fetch(`${API_BASE}/escrow/release`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ escrowId }),
-    });
-    return await handleResponse(res);
+  /**
+   * Verify a Paystack payment
+   */
+  async verifyPayment(reference: string) {
+    const response = await apiClient.get(`/escrow/verify/${encodeURIComponent(reference)}`);
+    return response.data;
   },
 
-  // Refund funds to client
-  refund: async (escrowId: string | number) => {
-    const res = await fetch(`${API_BASE}/escrow/refund`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ escrowId }),
-    });
-    return await handleResponse(res);
+  /**
+   * Initialize a deposit (for additional funding)
+   */
+  async initializeDeposit(data: { amount: number; email: string }) {
+    const response = await apiClient.post('/deposit/initialize', data);
+    return response.data;
   },
 
-  // Get a single escrow by ID
-  getOne: async (escrowId: string | number) => {
-    const res = await fetch(`${API_BASE}/escrow/${escrowId}`);
-    return await handleResponse(res);
+  /**
+   * Release funds from escrow
+   */
+  async releaseEscrow(id: string | number) {
+    const response = await apiClient.post('/escrow/release', { id });
+    return response.data;
   },
 
-  // Validate deliverable with AI
-  validateDeliverable: async (payload: {
-    escrowId: string | number;
-    deliverableImageUrl: string;
-    criteriaVerificationRules: string;
-  }) => {
-    const res = await fetch(`${API_BASE}/agent/escrow/validate-deliverable`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    return await handleResponse(res);
+  /**
+   * Refund escrow funds
+   */
+  async refundEscrow(id: string | number) {
+    const response = await apiClient.post('/escrow/refund', { id });
+    return response.data;
   },
 };
