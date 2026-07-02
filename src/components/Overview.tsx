@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
-  TrendingUp, Home as HomeIcon, Users as UsersIcon,
-  Shield as ShieldIcon, Loader2, Bot, Cpu
+  Home as HomeIcon, Users as UsersIcon,
+  Shield as ShieldIcon, Loader2, Bot, Cpu, Search
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -36,57 +36,57 @@ const MatchingAgentPanel: React.FC<{ sweep: MatchSweep }> = ({ sweep }) => {
   const scoreColor = (s: number) =>
     s >= 80 ? "text-green-600" :
     s >= 60 ? "text-amber-600" :
-              "text-gray-500";
+              "text-gray-400";
 
   return (
-    <div className="bg-white rounded-[0.5rem] border border-gray-300 shadow-sm p-4 h-full flex flex-col">
+    <div className="bg-white rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.02)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.07)] transition-shadow border border-gray-50 p-5 h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-100">
+      <div className="flex items-center justify-between mb-5 pb-3 border-b border-gray-100">
         <div className="flex items-center gap-2">
-          <Bot size={16} className="text-[#141414]" />
-          <h3 className="text-sm text-gray-700 font-medium">Property Matching Agent</h3>
+          <Bot size={18} className="text-[#141414]" />
+          <h3 className="font-display text-base font-bold text-[#141414]">Property Matching Agent</h3>
         </div>
         {sweep.status === "scanning" && (
-          <span className="text-xs font-semibold text-green-600 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+          <span className="text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full text-[#C5A880] bg-[#C5A880]/10 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#C5A880] animate-pulse" />
             Scanning
           </span>
         )}
         {sweep.status === "done" && (
-          <span className="text-xs text-gray-500">
-            {sweep.matches.length} matches found
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50 px-2.5 py-1 rounded-full">
+            {sweep.matches.length} Matches
           </span>
         )}
       </div>
 
       {/* Active scan indicator */}
       {sweep.status === "scanning" && (
-        <div className="flex items-center gap-2 p-3 bg-gray-50 border border-gray-300 rounded-[0.5rem] mb-4">
-          <Cpu size={14} className="text-green-600 shrink-0" />
-          <p className="text-xs text-gray-600 flex-1">
-            Cross-referencing <span className="font-semibold text-[#141414]">{sweep.totalLeads} leads</span> vs <span className="font-semibold text-[#141414]">{sweep.totalProperties} listings</span>
+        <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl mb-5">
+          <Cpu size={16} className="text-[#C5A880] shrink-0" />
+          <p className="text-xs font-medium text-gray-500 flex-1">
+            Cross-referencing <span className="font-bold text-[#141414]">{sweep.totalLeads} leads</span> vs <span className="font-bold text-[#141414]">{sweep.totalProperties} listings</span>
           </p>
         </div>
       )}
 
       {/* Match list */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto pr-2">
         {sweep.matches.length > 0 ? (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {sweep.matches.slice(0, 5).map((m, i) => (
-              <div key={i} className="flex items-center justify-between gap-3">
+              <div key={i} className="flex items-center justify-between gap-4 group">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-[#141414] truncate">{m.lead_name}</p>
-                  <p className="text-xs text-gray-500 truncate">{m.property_title}</p>
+                  <p className="font-display text-sm font-bold text-[#141414] truncate group-hover:text-[#C5A880] transition-colors">{m.lead_name}</p>
+                  <p className="text-xs font-medium text-gray-400 truncate mt-0.5">{m.property_title}</p>
                 </div>
-                <span className={cn("text-sm font-bold shrink-0", scoreColor(m.score))}>
+                <span className={cn("text-lg font-black tracking-tight shrink-0", scoreColor(m.score))}>
                   {m.score}%
                 </span>
               </div>
             ))}
           </div>
         ) : sweep.status === "done" ? (
-          <div className="flex h-full items-center justify-center text-xs text-gray-500">
+          <div className="flex h-full items-center justify-center text-sm font-medium text-gray-400">
             No strong matches found.
           </div>
         ) : null}
@@ -94,10 +94,10 @@ const MatchingAgentPanel: React.FC<{ sweep: MatchSweep }> = ({ sweep }) => {
 
       {/* Footer */}
       <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-100">
-        <p className="text-xs text-gray-500">
-          {sweep.lastRun ? `Last run: ${new Date(sweep.lastRun).toLocaleTimeString()}` : "No sweep run yet"}
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+          {sweep.lastRun ? `Run: ${new Date(sweep.lastRun).toLocaleTimeString()}` : "Pending"}
         </p>
-        <Link to="/agent/matches" className="text-xs font-semibold text-blue-600 hover:underline">
+        <Link to="/agent/matches" className="text-xs font-bold text-[#141414] hover:text-[#C5A880] transition-colors">
           View Details
         </Link>
       </div>
@@ -113,14 +113,16 @@ const StatCard = ({ label, value, trend, icon: Icon, trendInverse = false }: any
     : (isPositive ? "text-green-600" : "text-red-600");
 
   return (
-    <div className="bg-white rounded-[0.5rem] p-4 border border-gray-300 shadow-sm flex flex-col">
-      <div className="flex justify-between items-start mb-2">
-        <h3 className="text-sm text-gray-600">{label}</h3>
-        <Icon size={16} className="text-gray-400" />
+    <div className="bg-white rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.02)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.07)] transition-shadow border border-gray-50 p-6 flex flex-col">
+      <div className="flex justify-between items-start mb-4">
+        <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{label}</h3>
+        <div className="p-2 bg-gray-50 rounded-xl">
+          <Icon size={16} className="text-[#141414]" />
+        </div>
       </div>
-      <p className="text-2xl font-semibold text-[#141414] mb-1">{value}</p>
-      <p className={cn("text-xs", trendColor)}>
-        {trend} <span className="text-gray-500 ml-1">vs last month</span>
+      <p className="text-3xl font-black text-[#141414] tracking-tight mb-2">{value}</p>
+      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+        <span className={trendColor}>{trend}</span> vs last month
       </p>
     </div>
   );
@@ -175,7 +177,7 @@ export const DashboardOverview: React.FC = () => {
           }
         }
 
-        const activeProps   = properties.filter((p: any) => p.status?.toLowerCase() === "active");
+        const activeProps   = properties.filter((p: any) => p.status?.toLowerCase() === "active" || p.status?.toLowerCase() === "active_listing");
         const newLeads      = leads.filter((l: any) => l.kanban_stage === "new" || l.status === "new");
         const closedDeals   = properties.filter((p: any) => ["under_contract","sold"].includes(p.status?.toLowerCase())).length
                             + leads.filter((l: any) => l.kanban_stage?.toLowerCase() === "won").length;
@@ -216,7 +218,7 @@ export const DashboardOverview: React.FC = () => {
   }, []);
 
   const aggregateChartData = (properties: any[], leads: any[]) => {
-    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
     const cur    = new Date().getMonth();
     const agg    = Array.from({ length: 5 }, (_, i) => {
       const mi = (cur - 4 + i + 12) % 12;
@@ -237,113 +239,132 @@ export const DashboardOverview: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-        <p className="text-sm font-medium text-gray-500">Loading workspace...</p>
+      <div className="min-h-[40vh] flex flex-col items-center justify-center space-y-4">
+        <Loader2 size={32} className="animate-spin text-[#141414]" />
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Syncing Workspace...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen p-6">
-      <div className="mx-auto space-y-4">
+    <div className="space-y-6 font-sans pb-12">
+      <div className="mx-auto space-y-6">
+        
         {error && (
-          <div className="p-3 bg-red-50 text-red-700 text-sm border border-red-200 rounded-[0.5rem]">{error}</div>
+          <div className="p-4 bg-red-50 text-red-700 text-sm font-medium border border-red-100 rounded-2xl shadow-sm">
+            {error}
+          </div>
         )}
 
-        {/* Top KPI Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Active Listings" value={stats.activeListings} trend="+12%" icon={HomeIcon} />
-          <StatCard label="New Leads"       value={stats.newLeads}       trend="+24%" icon={UsersIcon} />
-          <StatCard label="Closed Deals"    value={stats.closedDeals}    trend="+8%"  icon={TrendingUp} />
-          <StatCard label="KYC Pending"     value={stats.kycPending}     trend={stats.kycPending > 0 ? "-2" : "0"} icon={ShieldIcon} trendInverse />
-        </div>
-
         {/* Main Grid Area */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
-          {/* Deals Line Chart (Spans 4 cols) */}
-          <div className="lg:col-span-4 bg-white rounded-[0.5rem] p-4 border border-gray-300 shadow-sm h-[320px] flex flex-col">
-            <h3 className="text-sm text-gray-600 mb-4">Deal Volume</h3>
+          {/* Deals Line Chart - Utilizing Blue for Graph Data */}
+          <div className="lg:col-span-4 bg-white rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.02)] border border-gray-50 p-6 h-[340px] flex flex-col">
+            <h3 className="font-display text-base font-bold text-[#141414] mb-6">Deal Volume</h3>
             <div className="flex-1 min-h-0">
               {chartData.some(d => d.deals > 0) ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={12} tick={{ fill: "#6b7280" }} dy={10} />
-                    <YAxis axisLine={false} tickLine={false} fontSize={12} tick={{ fill: "#6b7280" }} dx={-10} allowDecimals={false} />
-                    <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e5e7eb", fontSize: 12 }} formatter={(v: number) => [v, "Deals"]} />
-                    <Line type="monotone" dataKey="deals" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3, fill: "#3b82f6" }} />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={10} tick={{ fill: "#9ca3af", fontWeight: 700 }} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} fontSize={10} tick={{ fill: "#9ca3af", fontWeight: 700 }} dx={-10} allowDecimals={false} />
+                    <Tooltip 
+                      contentStyle={{ background: "#fff", border: "1px solid #f3f4f6", borderRadius: "12px", fontSize: 12, fontWeight: 600, boxShadow: "0 10px 25px rgba(0,0,0,0.05)" }} 
+                      formatter={(v: number) => [v, "Deals"]} 
+                    />
+                    <Line type="monotone" dataKey="deals" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: "#3b82f6", strokeWidth: 0 }} activeDot={{ r: 6 }} />
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex h-full items-center justify-center text-sm text-gray-400">Insufficient data</div>
+                <div className="flex h-full items-center justify-center">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Insufficient Data</p>
+                </div>
               )}
             </div>
           </div>
 
-          {/* AI Matching Panel (Spans 4 cols) */}
-          <div className="lg:col-span-4 h-[320px]">
+          {/* AI Matching Panel */}
+          <div className="lg:col-span-4 h-[340px]">
             <MatchingAgentPanel sweep={sweep} />
           </div>
 
-          {/* Revenue Bar Chart (Spans 4 cols) */}
-          <div className="lg:col-span-4 bg-white rounded-[0.5rem] p-4 border border-gray-300 shadow-sm h-[320px] flex flex-col">
-            <h3 className="text-sm text-gray-600 mb-4">Sales (m) vs Target</h3>
+          {/* Revenue Bar Chart - Utilizing Green for Target Performance */}
+          <div className="lg:col-span-4 bg-white rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.02)] border border-gray-50 p-6 h-[340px] flex flex-col">
+            <h3 className="font-display text-base font-bold text-[#141414] mb-6">Sales Target</h3>
             <div className="flex-1 min-h-0">
               {chartData.some(d => d.revenue > 0) ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} barSize={24}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={12} tick={{ fill: "#6b7280" }} dy={10} />
-                    <YAxis axisLine={false} tickLine={false} fontSize={12} tick={{ fill: "#6b7280" }} tickFormatter={v => `${Math.round(v/1000000)}M`} dx={-10} />
-                    <Tooltip cursor={{ fill: "#f3f4f6" }} contentStyle={{ background: "#fff", border: "1px solid #e5e7eb", fontSize: 12 }} formatter={(v: number) => [formatCurrency(v), "Revenue"]} />
-                    <Bar dataKey="revenue" fill="#60a5fa" />
+                  <BarChart data={chartData} barSize={20}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={10} tick={{ fill: "#9ca3af", fontWeight: 700 }} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} fontSize={10} tick={{ fill: "#9ca3af", fontWeight: 700 }} tickFormatter={v => `${Math.round(v/1000000)}M`} dx={-10} />
+                    <Tooltip 
+                      cursor={{ fill: "#f9fafb" }} 
+                      contentStyle={{ background: "#fff", border: "1px solid #f3f4f6", borderRadius: "12px", fontSize: 12, fontWeight: 600, boxShadow: "0 10px 25px rgba(0,0,0,0.05)" }} 
+                      formatter={(v: number) => [formatCurrency(v), "Revenue"]} 
+                    />
+                    <Bar dataKey="revenue" fill="#10b981" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex h-full items-center justify-center text-sm text-gray-400">Insufficient data</div>
+                <div className="flex h-full items-center justify-center">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Insufficient Data</p>
+                </div>
               )}
             </div>
           </div>
         </div>
 
         {/* Bottom Row: Recent Listings Table */}
-        <div className="bg-white rounded-[0.5rem] border border-gray-300 shadow-sm p-4">
-          <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-100">
-            <h3 className="text-sm text-gray-600">Recent Listings Table</h3>
-            <Link to="/agent/matches" className="text-xs font-semibold text-blue-600 hover:underline">View All</Link>
+        <div className="bg-white rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.02)] border border-gray-50 p-6">
+          <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
+            <h3 className="font-display text-base font-bold text-[#141414]">Recent Portfolio Additions</h3>
+            <Link to="/agent/matches" className="text-xs font-bold text-[#141414] hover:text-[#C5A880] transition-colors">
+              View Database
+            </Link>
           </div>
 
           {recentListings.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="w-full text-left">
                 <thead>
-                  <tr className="text-gray-500 border-b border-gray-300">
-                    <th className="font-normal pb-2 w-12">Image</th>
-                    <th className="font-normal pb-2">Property</th>
-                    <th className="font-normal pb-2">Location</th>
-                    <th className="font-normal pb-2">Price</th>
-                    <th className="font-normal pb-2">Status</th>
+                  <tr className="border-b border-gray-50">
+                    <th className="text-[10px] font-bold text-gray-400 uppercase tracking-wider pb-3 w-16">Asset</th>
+                    <th className="text-[10px] font-bold text-gray-400 uppercase tracking-wider pb-3">Property</th>
+                    <th className="text-[10px] font-bold text-gray-400 uppercase tracking-wider pb-3">Location</th>
+                    <th className="text-[10px] font-bold text-gray-400 uppercase tracking-wider pb-3">Valuation</th>
+                    <th className="text-[10px] font-bold text-gray-400 uppercase tracking-wider pb-3">Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {recentListings.map(item => {
                     const isActive = ["active","active_listing"].includes(item.status?.toLowerCase());
                     return (
-                      <tr key={item.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
-                        <td className="py-2">
+                      <tr key={item.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors group">
+                        <td className="py-3">
                           <img 
                             src={item.images?.[0] || item.images?.[0]?.s3_path || "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=80"}
-                            className="w-8 h-8 object-cover rounded-[0.5rem] border border-gray-300" 
+                            className="w-10 h-10 object-cover rounded-xl border border-gray-100" 
                             alt="thumb" 
                           />
                         </td>
-                        <td className="py-2 font-medium text-[#141414]">{item.title}</td>
-                        <td className="py-2 text-gray-500">{item.location || item.city}</td>
-                        <td className="py-2 text-[#141414]">{formatCurrency(Number(item.price || 0))}</td>
-                        <td className={cn("py-2", isActive ? "text-green-600" : "text-amber-600")}>
-                          {item.status?.replace("_", " ") || "Active"}
+                        <td className="py-3 font-display text-sm font-bold text-[#141414] group-hover:text-[#C5A880] transition-colors">
+                          {item.title}
+                        </td>
+                        <td className="py-3 text-xs font-medium text-gray-500">
+                          {item.location || item.city}
+                        </td>
+                        <td className="py-3 text-sm font-black text-[#141414] tracking-tight">
+                          {formatCurrency(Number(item.price || 0))}
+                        </td>
+                        <td className="py-3">
+                          <span className={cn(
+                            "text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full", 
+                            isActive ? "text-green-600 bg-green-50" : "text-gray-400 bg-gray-50"
+                          )}>
+                            {item.status?.replace("_", " ") || "Active"}
+                          </span>
                         </td>
                       </tr>
                     );
@@ -352,7 +373,13 @@ export const DashboardOverview: React.FC = () => {
               </table>
             </div>
           ) : (
-            <div className="py-6 text-center text-sm text-gray-500">No listings available.</div>
+            <div className="py-12 flex flex-col items-center justify-center text-center">
+              <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center text-gray-400 mb-3">
+                <Search size={20} />
+              </div>
+              <h3 className="font-display text-sm font-bold text-[#141414] mb-1">No listings available</h3>
+              <p className="text-xs text-gray-500">Your portfolio is currently empty.</p>
+            </div>
           )}
         </div>
       </div>

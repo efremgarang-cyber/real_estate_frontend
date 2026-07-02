@@ -56,6 +56,7 @@ export interface RegisterPayload {
 export interface LoginCredentials {
   email: string;
   password: string;
+  remember?: boolean; 
 }
 
 export interface User {
@@ -76,8 +77,11 @@ export interface UserProfile {
 }
 
 export interface AuthResponse {
-  token: string;
-  user: User;
+  status?: 'success' | '2fa_required'; 
+  message?: string;
+  email?: string; 
+  token?: string; 
+  user?: User;    
   profile?: UserProfile | null;
 }
 

@@ -1,17 +1,19 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { authApi } from "../api/auth";
+import { authApi, LoginResult } from "../api/auth";
 import { UserProfile, User } from "../types";
 
 interface AuthContextType {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, remember: boolean) => Promise<LoginResult>;
   register: (email: string, password: string, displayName: string, agencyCode: string, role?: string) => Promise<void>;
   logout: () => Promise<void>;
   createAgencyAndProfile: (agencyName: string, role: "Admin" | "Agent") => Promise<void>;
   joinAgency: (joinCode: string) => Promise<void>;
 }
+
+
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -45,12 +47,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     bootstrapSession();
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (
+    email: string, 
+    password: string, 
+    remember: boolean
+  ): Promise<LoginResult> => { // Use the interface
     try {
-      const data = await authApi.login({ email, password });
-      localStorage.setItem("makao_token", data.token);
-      setUser(data.user);
-      setProfile(data.profile || null);
+      const data = await authApi.login({ email, password, remember });
+
+      if (data.status === '2fa_required') {
+        // TypeScript is happy now because email is optional in LoginResult
+        return { requires2FA: true, email: data.email };
+      }
+
+      // Standard Login
+      if (data.token && data.user) {
+        localStorage.setItem("makao_token", data.token);
+        setUser(data.user);
+        setProfile(data.profile || null);
+        
+        // matches LoginResult interface
+        return { requires2FA: false, success: true }; 
+      }
+      
+      throw new Error("Invalid response format from server");
     } catch (error) {
       console.error("Login failed:", error);
       throw error;
@@ -70,13 +90,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email,
         password,
         name: displayName,
-        agency_code: agencyCode
+        agency_code: agencyCode,
+        role: role 
       });
+
+      // 1. Validate mandatory fields using a guard
+      if (!data.token || !data.user) {
+        throw new Error("Registration succeeded, but the server returned an incomplete user profile.");
+      }
+
+      // 2. Safely set states with fallbacks
       localStorage.setItem("makao_token", data.token);
-      setUser(data.user);
-      // profile is null here — triggers workspace screen only if backend
-      // couldn't resolve the agency (shouldn't happen with required agency_code)
-      setProfile(data.profile || null);
+      
+      // Explicitly handle the 'data.user' to ensure it's not undefined
+      setUser(data.user); 
+      
+      // Fallback to null if profile is undefined/missing
+      setProfile(data.profile ?? null); 
+      
     } catch (error) {
       console.error("Registration failed:", error);
       throw error;

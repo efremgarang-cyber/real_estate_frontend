@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Maximize2, Minimize2, Bot } from 'lucide-react';
+import { X, Maximize2, Minimize2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChatWindow } from '../ChatWindow';
 
@@ -29,7 +29,7 @@ export const AssistantWidget: React.FC<{ contextData?: any }> = ({ contextData }
             <div className="flex items-center justify-between px-5 py-3 bg-[#141414] shrink-0">
               <div className="flex items-center gap-2.5">
                 <div className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center">
-                  <Bot size={13} className="text-[#C9A96E]" />
+                  <img src="\robot.svg" alt="bot" className="bg-white p-1 rounded-full" />
                 </div>
                 <span className="text-xs font-bold text-white uppercase tracking-widest">
                   Makao Assistant
@@ -73,7 +73,7 @@ export const AssistantWidget: React.FC<{ contextData?: any }> = ({ contextData }
         className="relative w-14 h-14 bg-[#141414] hover:bg-black rounded-full shadow-[0_8px_24px_rgba(0,0,0,0.25)] flex items-center justify-center transition-colors"
         aria-label="Open Makao Assistant"
       >
-        <Bot size={22} className="text-[#C9A96E]" />
+        <img src="\robot.svg" alt="bot" className="bg-white p-1 rounded-full" />
         {/* Gold ring pulse when closed */}
         {mode === 'closed' && (
           <span className="absolute inset-0 rounded-full border border-[#C9A96E]/30 animate-ping" />

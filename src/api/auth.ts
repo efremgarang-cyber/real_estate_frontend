@@ -1,15 +1,18 @@
 import { api } from '../lib/api';
 import {
   LoginCredentials,
+  RegisterPayload,
   AuthResponse,
   SuccessMessage,
   UserProfile,
   User,
 } from '../types';
 
-export interface RegisterPayload extends LoginCredentials {
-  name: string;
-  agency_code: string;
+
+export interface LoginResult {
+  requires2FA: boolean;
+  email?: string;
+  success?: boolean;
 }
 
 export interface InitializeWorkspacePayload {
@@ -32,8 +35,8 @@ export interface UpdateProfilePayload {
 
 export const authApi = {
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-    const response = await api.post<AuthResponse>('/login', credentials); 
-    return response.data;
+    const { data } = await api.post('/login', credentials);
+    return data;
   },
 
   register: async (payload: RegisterPayload): Promise<AuthResponse> => {
