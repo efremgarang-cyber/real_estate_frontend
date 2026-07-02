@@ -1,0 +1,6 @@
+{
+  "name": "Vantage: Agency Workspace (Real Estate OS)",
+  "description": "Multi-tenant real estate operating system with agency onboarding, RBAC, listing lifecycle management, secure KYC vault, and lead pipeline.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": []
+}

@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+@theme {
+  /* Retaining your preferred fonts */
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Cormorant Garamond", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  body {
+    @apply bg-[#E4E3E0] dark:bg-[#0A0A0A] text-[#141414] dark:text-gray-100 font-sans transition-colors duration-300;
+  }
+}
+
+@layer components {
+  .dashboard-card {
+    @apply bg-white dark:bg-[#141414] border border-[#141414] dark:border-gray-800 p-6 
+           shadow-[4px_4px_0px_0px_rgba(20,20,20,1)] dark:shadow-none;
+  }
+
+  .btn-primary {
+    @apply bg-[#141414] dark:bg-white text-[#E4E3E0] dark:text-[#141414] 
+           px-4 py-2 hover:bg-[#141414]/90 dark:hover:bg-gray-200 transition-all font-medium;
+  }
+
+  .btn-secondary {
+    @apply border border-[#141414] dark:border-gray-600 text-[#141414] dark:text-gray-300 
+           px-4 py-2 hover:bg-[#141414] dark:hover:bg-gray-800 hover:text-[#E4E3E0] transition-all font-medium;
+  }
+
+  .input-field {
+    @apply bg-white dark:bg-[#1A1A1A] border border-[#141414] dark:border-gray-700 
+           px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#141414] dark:focus:ring-gray-500 w-full;
+  }
+
+  .data-row {
+    @apply border-b border-[#141414] dark:border-gray-800 py-3 px-4 
+           hover:bg-[#141414] dark:hover:bg-gray-800 hover:text-[#E4E3E0] transition-all cursor-pointer;
+  }
+}
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.animate-shimmer {
+  animation: shimmer 1.8s ease-in-out infinite;
+}
