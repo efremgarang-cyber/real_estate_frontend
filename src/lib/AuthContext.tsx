@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, Dispatch, SetStateAction } from "react";
 import { authApi, LoginResult } from "../api/auth";
 import { UserProfile, User } from "../types";
 
@@ -11,6 +11,8 @@ interface AuthContextType {
   logout: () => Promise<void>;
   createAgencyAndProfile: (agencyName: string, role: "Admin" | "Agent") => Promise<void>;
   joinAgency: (joinCode: string) => Promise<void>;
+  setUser: Dispatch<SetStateAction<User | null>>;
+  setProfile: Dispatch<SetStateAction<UserProfile | null>>;
 }
 
 
@@ -154,9 +156,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <AuthContext.Provider value={{
-      user, profile, loading,
-      login, register, logout,
-      createAgencyAndProfile, joinAgency,
+      user, 
+      setUser, 
+      profile, 
+      setProfile,
+      loading,
+      login, 
+      register, 
+      logout,
+      createAgencyAndProfile, 
+      joinAgency,
     }}>
       {children}
     </AuthContext.Provider>

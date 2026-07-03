@@ -1,9 +1,15 @@
 // src/components/auth/OtpLoginView.tsx
 import React, { useState } from "react";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, ArrowLeft } from "lucide-react";
+import { useAuth } from "@/src/lib/AuthContext";
 import { api } from "@/src/lib/api";
 
-export const OtpLoginView: React.FC<{ onSwitchView: (view: any) => void }> = () => {
+interface OtpLoginViewProps {
+  onSwitchView: (view: any) => void;
+}
+
+export const OtpLoginView: React.FC<OtpLoginViewProps> = ({ onSwitchView }) => {
+  const { setUser, setProfile } = useAuth();
   const [step, setStep] = useState<'request' | 'verify'>('request');
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -12,7 +18,8 @@ export const OtpLoginView: React.FC<{ onSwitchView: (view: any) => void }> = () 
 
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true); setError(null);
+    setIsLoading(true); 
+    setError(null);
     try {
       await api.post('/auth/otp/request', { email });
       setStep('verify');
@@ -26,10 +33,24 @@ export const OtpLoginView: React.FC<{ onSwitchView: (view: any) => void }> = () 
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (code.length < 6) return setError("Please enter the 6-digit code.");
-    setIsLoading(true); setError(null);
+    setIsLoading(true); 
+    setError(null);
     try {
-      await api.post('/auth/otp/verify', { email, code });
-      window.location.reload(); 
+      const response = await api.post('/auth/otp/verify', { email, code });
+      const data = response.data;
+
+      // Ensure critical session fragments exist
+      if (!data.token || !data.user) {
+        throw new Error("Invalid response schema from authentication endpoint.");
+      }
+
+      // Commit the authorization payload to disk
+      localStorage.setItem("makao_token", data.token);
+      
+      // Update global context state to trigger layout router switch instantly
+      if (setUser) setUser(data.user);
+      if (setProfile) setProfile(data.profile || null);
+
     } catch (err: any) {
       setError(err.response?.data?.message || "Invalid or expired code.");
     } finally {
@@ -38,7 +59,17 @@ export const OtpLoginView: React.FC<{ onSwitchView: (view: any) => void }> = () 
   };
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 text-left">
+      
+      {/* Back Button Navigation */}
+      <button 
+        type="button" 
+        onClick={() => step === 'verify' ? setStep('request') : onSwitchView('login')}
+        className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 hover:text-[#141414] transition-colors uppercase tracking-wider mb-6 cursor-pointer"
+      >
+        <ArrowLeft size={14} /> Back
+      </button>
+
       <h1 className="font-display text-2xl font-bold text-center text-[#141414] mb-2">Passwordless Login</h1>
       <p className="text-sm text-center text-gray-500 mb-8">
         {step === 'request' ? "Enter your email to receive a secure login code." : `Enter the code sent to ${email}`}
@@ -58,10 +89,10 @@ export const OtpLoginView: React.FC<{ onSwitchView: (view: any) => void }> = () 
             <input
               type="email" required placeholder="you@company.com"
               value={email} onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm text-[#141414] font-medium"
+              className="w-full px-4 py-3.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-sm text-[#141414] font-medium placeholder-gray-400"
             />
           </div>
-          <button type="submit" disabled={isLoading || !email} className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#141414] hover:bg-black text-white rounded-xl font-bold transition-all disabled:opacity-70 shadow-lg shadow-black/10">
+          <button type="submit" disabled={isLoading || !email} className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#141414] hover:bg-black text-white rounded-xl font-bold transition-all disabled:opacity-70 shadow-lg shadow-black/10 cursor-pointer">
             {isLoading ? <Loader2 size={18} className="animate-spin" /> : "Send Login Code"}
           </button>
         </form>
@@ -70,12 +101,12 @@ export const OtpLoginView: React.FC<{ onSwitchView: (view: any) => void }> = () 
           <div>
             <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 text-center">6-Digit OTP</label>
             <input
-              type="text" required maxLength={6} placeholder="123456"
+              type="text" required maxLength={6} placeholder="000000" autoFocus
               value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
               className="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-[#141414] focus:ring-1 focus:ring-[#141414] transition-all text-center text-3xl tracking-[0.5em] font-mono text-[#141414] placeholder-gray-200"
             />
           </div>
-          <button type="submit" disabled={isLoading || code.length < 6} className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#141414] hover:bg-black text-white rounded-xl font-bold transition-all disabled:opacity-70 shadow-lg shadow-black/10">
+          <button type="submit" disabled={isLoading || code.length < 6} className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#141414] hover:bg-black text-white rounded-xl font-bold transition-all disabled:opacity-70 shadow-lg shadow-black/10 cursor-pointer">
             {isLoading ? <Loader2 size={18} className="animate-spin" /> : "Verify & Login"}
           </button>
         </form>

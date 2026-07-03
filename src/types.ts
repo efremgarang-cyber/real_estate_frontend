@@ -61,11 +61,26 @@ export interface LoginCredentials {
 
 export interface User {
   id: number;
+  agency_id?: number | null;
   name: string;
   email: string;
-  role: 'admin' | 'broker' | 'agent';
-  agency_id: number | null;
-  avatar_path: string;
+  avatar_path?: string | null;
+  phone?: string | null;
+  role: 'admin' | 'agent' | 'client';
+  
+  // ── NEW 2FA PROPERTIES ──
+  two_factor_enabled: boolean; 
+  two_factor_code?: string | null;
+  two_factor_expires_at?: string | null;
+  
+  // (Include your Stripe properties if you are returning them to the frontend)
+  stripe_id?: string | null;
+  pm_type?: string | null;
+  pm_last_four?: string | null;
+  trial_ends_at?: string | null;
+  
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface UserProfile {
