@@ -452,36 +452,7 @@ export const LandingPage: React.FC = () => {
         )}
       </section>
 
-      {/* ─── 3. STATISTICS / TRUST INDICATORS ───────────────────────────────────────── */}
-      <section className="bg-gradient-to-r from-[#0A0A0A] to-[#141414] text-white py-20">
-        <div className="max-w-7xl mx-auto px-6 md:px-12">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 text-center">
-            <div className="space-y-3 transform hover:scale-105 transition-transform duration-300">
-              <div className="w-16 h-16 bg-[#D4AF37]/10 rounded-full flex items-center justify-center mx-auto">
-                <Shield size={32} className="text-[#D4AF37]" />
-              </div>
-              <p className="text-4xl font-bold text-[#D4AF37]">100%</p>
-              <p className="text-sm uppercase tracking-wider font-semibold text-gray-400">Verified Properties</p>
-            </div>
-            <div className="space-y-3 transform hover:scale-105 transition-transform duration-300">
-              <div className="w-16 h-16 bg-[#D4AF37]/10 rounded-full flex items-center justify-center mx-auto">
-                <TrendingUp size={32} className="text-[#D4AF37]" />
-              </div>
-              <p className="text-4xl font-bold text-[#D4AF37]">2,500+</p>
-              <p className="text-sm uppercase tracking-wider font-semibold text-gray-400">Successful Transactions</p>
-            </div>
-            <div className="space-y-3 transform hover:scale-105 transition-transform duration-300">
-              <div className="w-16 h-16 bg-[#D4AF37]/10 rounded-full flex items-center justify-center mx-auto">
-                <CheckCircle2 size={32} className="text-[#D4AF37]" />
-              </div>
-              <p className="text-4xl font-bold text-[#D4AF37]">98%</p>
-              <p className="text-sm uppercase tracking-wider font-semibold text-gray-400">Client Satisfaction</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── 4. WHY CHOOSE US with Premium Visuals ───────────────────────────────────────── */}
+      {/* ─── 3. WHY CHOOSE US with Premium Visuals ───────────────────────────────────────── */}
       <section className="py-24 px-6 md:px-12 bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">

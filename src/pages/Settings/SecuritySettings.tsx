@@ -8,6 +8,7 @@ export const SecuritySettings = () => {
   
   // Read state directly from the global auth session source of truth
   const is2FAEnabled = !!user?.two_factor_enabled;
+  console.log(user);
 
   const [setupStep, setSetupStep] = useState<'idle' | 'requesting' | 'verifying'>('idle');
   const [otpCode, setOtpCode] = useState("");

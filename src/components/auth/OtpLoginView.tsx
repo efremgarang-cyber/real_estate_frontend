@@ -21,7 +21,10 @@ export const OtpLoginView: React.FC<OtpLoginViewProps> = ({ onSwitchView }) => {
     setIsLoading(true); 
     setError(null);
     try {
-      await api.post('/auth/otp/request', { email });
+      const response = await api.post('/auth/otp/request', { email });
+      // Log the OTP to the console for development testing
+      console.log("DEV OTP CODE:", response.data.otp);
+      
       setStep('verify');
     } catch (err: any) {
       setError(err.response?.data?.message || "Failed to send OTP.");
@@ -60,16 +63,6 @@ export const OtpLoginView: React.FC<OtpLoginViewProps> = ({ onSwitchView }) => {
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 text-left">
-      
-      {/* Back Button Navigation */}
-      <button 
-        type="button" 
-        onClick={() => step === 'verify' ? setStep('request') : onSwitchView('login')}
-        className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 hover:text-[#141414] transition-colors uppercase tracking-wider mb-6 cursor-pointer"
-      >
-        <ArrowLeft size={14} /> Back
-      </button>
-
       <h1 className="font-display text-2xl font-bold text-center text-[#141414] mb-2">Passwordless Login</h1>
       <p className="text-sm text-center text-gray-500 mb-8">
         {step === 'request' ? "Enter your email to receive a secure login code." : `Enter the code sent to ${email}`}
