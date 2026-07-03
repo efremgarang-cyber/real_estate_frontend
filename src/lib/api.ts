@@ -1,12 +1,13 @@
 import axios from 'axios';
 
 const getBaseURL = (): string => {
-  // For development with proxy, use relative path
-  const meta: any = import.meta;
-  if (meta.env && meta.env.DEV) {
+  // Statically resolvable check for Vite development mode
+  if (import.meta.env.DEV) {
     return '/api/v1';
   }
-  return (meta.env && meta.env.VITE_API_URL) || 'http://localhost:8000/api/v1';
+  
+  // Statically resolvable fallback for production builds
+  return import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 };
 
 export const api = axios.create({
