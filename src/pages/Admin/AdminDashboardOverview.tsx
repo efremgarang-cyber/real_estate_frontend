@@ -12,6 +12,7 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
+  Briefcase,
   Home
 } from "lucide-react";
 import { api } from "../../lib/api";
@@ -35,29 +36,34 @@ export const AdminDashboardOverview: React.FC = () => {
   const [recentLogs, setRecentLogs] = useState<any[]>([]);
   const [pendingDisputes, setPendingDisputes] = useState<any[]>([]);
   const [recentProperties, setRecentProperties] = useState<any[]>([]);
+  const [recentAgencies, setRecentAgencies] = useState<any[]>([]); // ✅ Added corporate tracking state
 
   const fetchDashboardData = async () => {
     try {
-      const hubResponse = await api.get('/admin/dashboard-hub');
-      const hubData = hubResponse.data;
+      // Ensure this calls the route pointing to dashboardHub()
+      const hubResponse = await api.get('/admin/dashboard-hub'); 
+      const data = hubResponse.data;
       
-      // Mapping backend response keys to frontend state
       setStats({
-        total_users: hubData.users_count || 0,
-        total_agencies: hubData.agencies_count || 0,
-        pending_kyc: hubData.pending_kyc_count || 0,
-        disputes_count: hubData.disputes_count || 0,
-        total_locked_volume: hubData.escrows_count || 0,
-        platform_revenue: hubData.platform_revenue || 0,
-        total_properties: hubData.properties_count || 0
+        total_users: data.total_users || 0,
+        total_agencies: data.total_agencies || 0,
+        pending_kyc: data.pending_kyc_count || 0,
+        disputes_count: data.disputes_count || 0,
+        total_locked_volume: data.total_locked_volume || 0,
+        platform_revenue: data.platform_revenue || 0,
+        total_properties: data.total_properties || 0
       });
       
-      setPendingDisputes(hubData.disputes || []);
-      setRecentLogs(hubData.recent_logs || []);
-      setRecentProperties(hubData.recent_properties || []);
+      setPendingDisputes(data.disputes || []);
+      setRecentLogs(data.recent_logs || []);
+      setRecentProperties(data.recent_properties || []);
+      
+      // NOTE: 'recent_agencies' is missing from dashboardHub() return!
+      // Add it to the backend return or handle here:
+      setRecentAgencies(data.recent_agencies || []);
       
     } catch (error) {
-      console.error("Failed to fetch dashboard metrics pipeline:", error);
+      console.error("Failed to fetch dashboard metrics:", error);
     } finally {
       setLoading(false);
     }
@@ -170,7 +176,6 @@ export const AdminDashboardOverview: React.FC = () => {
             className="pl-11 pr-4 py-2.5 w-full bg-white dark:bg-[#141414] border border-neutral-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition-all"
           />
         </div>
-        {/* ── REMOVED "Add Property" Button ── */}
       </div>
 
       {/* ── SYSTEM MATRIX CARDS ── */}
@@ -207,8 +212,8 @@ export const AdminDashboardOverview: React.FC = () => {
         })}
       </div>
 
-      {/* ── WORKSPACE PANELS ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* ── PANEL ROW 1: DISPUTES & ACTIVITY ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
         
         {/* Disputes Panel */}
         <div className="lg:col-span-2 bg-white dark:bg-[#141414] rounded-[2rem] border border-neutral-200 dark:border-gray-800 p-8">
@@ -293,7 +298,7 @@ export const AdminDashboardOverview: React.FC = () => {
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-lg font-bold">Recent Activity</h2>
             <button 
-              onClick={() => navigateTo("/admin/logs")}
+              onClick={() => navigateTo("/admin/security")}
               className="text-xs text-gray-500 hover:text-black dark:hover:text-white transition-colors flex items-center gap-1"
             >
               View all <ChevronRight size={14} />
@@ -331,6 +336,106 @@ export const AdminDashboardOverview: React.FC = () => {
             </div>
           )}
         </div>
+      </div>
+
+      {/* ── ✅ NEW PANEL ROW 2: CORPORATE AGENCIES & RECENT PROPERTIES ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        {/* Corporate Agencies Listing Segment */}
+        <div className="bg-white dark:bg-[#141414] rounded-[2rem] border border-neutral-200 dark:border-gray-800 p-8">
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg font-bold">Corporate Agencies</h2>
+              <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400">
+                {recentAgencies.length} Listed
+              </span>
+            </div>
+            <button 
+              onClick={() => navigateTo("/admin/agencies")}
+              className="text-xs text-gray-500 hover:text-black dark:hover:text-white transition-colors flex items-center gap-1"
+            >
+              View all <ChevronRight size={14} />
+            </button>
+          </div>
+
+          {recentAgencies.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <Building2 size={48} className="mx-auto mb-4 text-gray-400 opacity-40" />
+              <p className="font-medium">No registered corporate agencies</p>
+              <p className="text-sm text-gray-400">Ecosystem workspace is empty</p>
+            </div>
+          ) : (
+            <div className="space-y-4 max-h-[360px] overflow-y-auto pr-1 custom-scrollbar">
+              {recentAgencies.slice(0, 5).map((agency) => (
+                <div key={agency.id} className="p-4 rounded-2xl border border-neutral-100 dark:border-gray-700 bg-neutral-50 dark:bg-[#1A1A1A] hover:border-black dark:hover:border-white transition-colors flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 bg-black dark:bg-white rounded-xl flex items-center justify-center text-white dark:text-black flex-shrink-0">
+                      <Building2 size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold truncate">{agency.name || 'Unnamed Agency Workspace'}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                        {agency.company_email || agency.email || "No business contact email"}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => navigateTo(`/admin/agencies/${agency.id}`)}
+                    className="p-2 text-gray-400 hover:text-black dark:hover:text-white hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded-xl transition-all"
+                  >
+                    <Eye size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Recent Properties Segment */}
+        <div className="bg-white dark:bg-[#141414] rounded-[2rem] border border-neutral-200 dark:border-gray-800 p-8">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-lg font-bold">Recent Listings</h2>
+            <button 
+              onClick={() => navigateTo("/admin/properties")}
+              className="text-xs text-gray-500 hover:text-black dark:hover:text-white transition-colors flex items-center gap-1"
+            >
+              View all <ChevronRight size={14} />
+            </button>
+          </div>
+
+          {recentProperties.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <Home size={48} className="mx-auto mb-4 text-gray-400 opacity-40" />
+              <p className="font-medium">No recent listings</p>
+              <p className="text-sm text-gray-400">No properties uploaded recently</p>
+            </div>
+          ) : (
+            <div className="space-y-4 max-h-[360px] overflow-y-auto pr-1 custom-scrollbar">
+              {recentProperties.slice(0, 5).map((property) => (
+                <div key={property.id} className="p-4 rounded-2xl border border-neutral-100 dark:border-gray-700 bg-neutral-50 dark:bg-[#1A1A1A] hover:border-black dark:hover:border-white transition-colors flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 bg-neutral-200 dark:bg-neutral-800 rounded-xl flex items-center justify-center text-gray-600 dark:text-gray-400 flex-shrink-0">
+                      <Home size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold truncate">{property.title || 'Untitled Property Asset'}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                        {property.location || 'Location Unspecified'} • KES {Number(property.price || 0).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => navigateTo(`/admin/properties/${property.id}`)}
+                    className="p-2 text-gray-400 hover:text-black dark:hover:text-white hover:bg-neutral-200 dark:hover:bg-neutral-800 rounded-xl transition-all"
+                  >
+                    <Eye size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
       </div>
 
       {/* ── QUICK ACTIONS BAR ── */}

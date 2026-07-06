@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useLocation, Outlet } from "react-router-dom";
-import { LayoutDashboard, Building2, ShieldAlert, Menu, Users, Settings, Moon, Sun } from "lucide-react"; 
+import { LayoutDashboard, Building2, ShieldAlert, Menu, Users, Settings, Moon, Sun, Briefcase } from "lucide-react"; 
 import { useAuth } from "../../lib/AuthContext";
 import { motion, AnimatePresence } from "motion/react";
 import { useTheme } from "../../lib/ThemeContext";
@@ -13,6 +13,7 @@ import { SecurityStatus } from "./SecurityStatus";
 
 const adminNavItems = [
   { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
+  { name: "Agencies", href: "/admin/agencies", icon: Briefcase },
   { name: "Properties", href: "/admin/properties", icon: Building2 },
   { name: "Pipeline Leads", href: "/admin/leads", icon: Users },
   { name: "Security", href: "/admin/security", icon: ShieldAlert },
