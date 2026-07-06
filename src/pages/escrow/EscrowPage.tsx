@@ -8,8 +8,9 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { escrowApi } from '../../api/escrow';
 import { api } from '../../lib/api';
-import { EscrowWithProgress } from '../../types/escrow';
 import { formatCurrency } from '../../lib/utils';
+
+type EscrowWithProgress = any;
 
 // --- MODAL COMPONENTS ---
 
