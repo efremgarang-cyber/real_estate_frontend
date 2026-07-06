@@ -23,7 +23,7 @@ import { KanbanBoard } from "./pages/Agent/leads/Kanban";
 import { VaultPage } from "./pages/Agent/vault/Vault";
 import { Settings } from "./pages/Settings";
 
-// ✨ Your Feature Components (Added Back)
+// Feature Components
 import { EscrowPage } from "./pages/Agent/escrow/EscrowPage";
 import SubscriptionPage from "./pages/SubscriptionPage";
 
@@ -32,22 +32,19 @@ import { AdminDashboardOverview } from "./pages/Admin/AdminDashboardOverview";
 import { AdminListings } from "./pages/Admin/properties/AdminListings"; 
 import { AdminPropertyDetails } from "./pages/Admin/properties/AdminPropertyDetails";
 import { AdminVaultPage } from "./pages/Admin/vault/AdminVaultPage";
-import { AdminLeadsDashboard } from "./pages/Admin/leads/AdminLeads"; 
+import { AdminLeads } from "./pages/Admin/leads/AdminLeads"; 
 import { UserMonitor } from "./pages/Admin/UserMonitor";
 import { AdminSecurityPage } from "./pages/Admin/AdminSecurityPage";
 import { UpdatePasswordPage } from "./pages/Agent/auth/UpdatePassword";
 import { AdminAgencies } from "./pages/Admin/AdminAgencies"; 
 
-
-export const appRoutes: RouteObject[
-  
-] = [
+export const appRoutes: RouteObject[] = [
   {
     path: "/",
     children: [
       // ── Public Client Routes (No Auth Required) ──
       { index: true, element: <LandingPage /> },
-      {path: "properties", element: <PublicListings />},
+      { path: "properties", element: <PublicListings /> },
       { path: "properties/:id", element: <PublicPropertyDetails /> },
       { path: "properties/:id/offer", element: <PublicOfferCheckout /> },
       { path: "update-password", element: <UpdatePasswordPage /> },
@@ -96,11 +93,19 @@ export const appRoutes: RouteObject[
               { path: "dashboard", element: <AdminDashboardOverview /> },
               { path: "properties", element: <AdminListings /> },
               { path: "properties/:id", element: <AdminPropertyDetails /> },
-              { path: "leads", element: <AdminLeadsDashboard /> },
+              { path: "leads", element: <AdminLeads /> },
               { path: "vault", element: <AdminVaultPage /> },
               { path: "users", element: <UserMonitor /> },
               { path: "agencies", element: <AdminAgencies /> },
-              { path: "agencies/:id", element: <div className="p-8 font-sans"><h1 className="text-2xl font-bold">Agency Workspace Profile</h1><p className="text-gray-400 text-sm mt-1">Detailed compliance and metric layout coming soon.</p></div> },
+              { 
+                path: "agencies/:id", 
+                element: (
+                  <div className="p-8 font-sans">
+                    <h1 className="text-2xl font-bold">Agency Workspace Profile</h1>
+                    <p className="text-gray-400 text-sm mt-1">Detailed compliance and metric layout coming soon.</p>
+                  </div>
+                ) 
+              },
               { path: "security", element: <AdminSecurityPage /> },
               { path: "settings", element: <Settings key="admin-settings" /> },
             ],
