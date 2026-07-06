@@ -1,12 +1,17 @@
 import axios from 'axios';
 
 const getBaseURL = (): string => {
-  // For development with proxy, use relative path
   const meta: any = import.meta;
-  if (meta.env && meta.env.DEV) {
-    return '/api/v1';
+  const envApiUrl = meta.env?.VITE_API_URL;
+
+  if (meta.env?.DEV) {
+    // In development, prefer an explicit backend URL if set; otherwise fall back
+    // to localhost so the app can still reach the Laravel API when Vite is used.
+    return envApiUrl || 'http://localhost:8000/api/v1';
   }
-  return (meta.env && meta.env.VITE_API_URL) || 'http://localhost:8000/api/v1';
+
+  // In production builds, use configured API URL or relative path to the same host.
+  return envApiUrl || '/api/v1';
 };
 
 export const api = axios.create({

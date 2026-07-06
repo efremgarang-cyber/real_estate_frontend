@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useLocation, Outlet } from "react-router-dom";
-import { LayoutDashboard, Building2, ShieldAlert, Menu, Users, Settings, Moon, Sun } from "lucide-react"; 
+import { LayoutDashboard, Building2, ShieldAlert, Menu, Users, Settings, Moon, Sun, Receipt } from "lucide-react"; 
 import { useAuth } from "../../lib/AuthContext";
 import { motion, AnimatePresence } from "motion/react";
 import { useTheme } from "../../lib/ThemeContext";
@@ -15,6 +15,7 @@ const adminNavItems = [
   { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
   { name: "Properties", href: "/admin/properties", icon: Building2 },
   { name: "Pipeline Leads", href: "/admin/leads", icon: Users },
+  { name: "Transactions", href: "/admin/transactions", icon: Receipt },
   { name: "Security", href: "/admin/security", icon: ShieldAlert },
   { name: "Users", href: "/admin/users", icon: Users },
   { name: "Settings", href: "/admin/settings", icon: Settings },
@@ -62,7 +63,7 @@ export const AdminLayout: React.FC = () => {
 
             <NotificationDropdown />
 
-            <button 
+            <button title="mobilemenu"
               type="button"
               onClick={() => setMobileMenuOpen(true)}
               className="md:hidden p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl"

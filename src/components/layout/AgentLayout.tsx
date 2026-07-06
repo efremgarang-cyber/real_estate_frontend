@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useLocation, Outlet } from "react-router-dom";
-import { BarChart3, Home, Users, ShieldCheck, Menu, Settings, Shield } from "lucide-react";
+import { BarChart3, Home, Users, ShieldCheck, Menu, Settings, Shield, CreditCard } from "lucide-react";
 import { useAuth } from "../../lib/AuthContext";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -16,6 +16,7 @@ const agentNavItems = [
   { name: "Leads", href: "/agent/leads", icon: Users },
   { name: "KYC Vault", href: "/agent/vault", icon: ShieldCheck },
   { name: "Escrow Vault", href: "/agent/escrows", icon: Shield },
+  { name: "Plans", href: "/agent/plans", icon: CreditCard },
   { name: "Settings", href: "/agent/settings", icon: Settings },
 ];
 

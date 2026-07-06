@@ -22,6 +22,7 @@ import { PropertyDetail } from "./pages/Agent/properties/PropertyDetails";
 import KanbanBoard from './pages/Agent/leads/Kanban';
 import { VaultPage } from "./pages/Agent/vault/Vault";
 import { Settings } from "./pages/Settings";
+import { AdminTransactions } from "./pages/Admin/AdminTransactions";
 
 // ✨ Your Feature Components (Added Back)
 import { EscrowPage } from "./pages/Agent/escrow/EscrowPage";
@@ -96,7 +97,9 @@ export const appRoutes: RouteObject[] = [
               { path: "vault", element: <AdminVaultPage /> },
               { path: "users", element: <UserMonitor /> },
               { path: "security", element: <AdminSecurityPage /> },
+              { path: "transactions", element: <AdminTransactions /> },
               { path: "settings", element: <Settings key="admin-settings" /> },
+              
             ],
           },
         ],

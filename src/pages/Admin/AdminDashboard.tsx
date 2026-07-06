@@ -8,7 +8,7 @@ export const AdminDashboard: React.FC = () => {
 
   useEffect(() => {
     // Axios backend consumption block
-    api.get('/admin/financials')
+    api.get('/admin/dashboard/metrics')
       .then(res => { setMetrics(res.data); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
