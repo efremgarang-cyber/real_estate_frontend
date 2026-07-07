@@ -34,7 +34,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({ navItems, onClose, onOpe
       >
         <div className="p-6 flex items-center justify-between border-b border-gray-100">
           <h1 className="font-display text-xl font-bold text-[#141414]">Menu</h1>
-          <button 
+          <button title="onclose"
             onClick={onClose}
             className="p-2 text-gray-400 hover:bg-gray-50 rounded-xl transition-colors"
           >

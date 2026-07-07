@@ -1,48 +1,31 @@
 import { api } from '../lib/api';
 import { User } from '../types'; 
-
-export interface CreateAgentPayload {
-  name: string;
-  email: string;
-  password?: string;
-}
+import { Agent, CreateAgentPayload, APICollectionResponse } from '../types';
 
 export interface UpdateAgentPayload {
   name?: string;
   email?: string;
   password?: string;
-  role?: 'admin' | 'agent';
+  role?: string;
 }
 
 export const agentApi = {
-  /**
-   * Fetch all agents belonging to the authenticated user's agency.
-   */
-  getAll: async (): Promise<User[]> => {
-    const response = await api.get<{ data: User[] }>('/agents');
-    return response.data.data;
+  getAll: async (): Promise<APICollectionResponse<Agent>> => {
+    const response = await api.get<APICollectionResponse<Agent>>('/agents');
+    return response.data;
   },
 
-  /**
-   * Create a new agent within the agency.
-   */
-  create: async (payload: CreateAgentPayload): Promise<User> => {
-    const response = await api.post<{ data: User }>('/agents', payload);
-    return response.data.data;
+  create: async (payload: CreateAgentPayload): Promise<{ data: Agent }> => {
+    const response = await api.post<{ data: Agent }>('/agents', payload);
+    return response.data;
   },
 
-  /**
-   * Update an existing agent's details.
-   */
-  update: async (id: string | number, payload: UpdateAgentPayload): Promise<User> => {
-    const response = await api.put<{ data: User }>(`/agents/${id}`, payload);
-    return response.data.data;
+  update: async (id: number | string, payload: UpdateAgentPayload): Promise<{ data: Agent }> => {
+    const response = await api.put<{ data: Agent }>(`/agents/${id}`, payload);
+    return response.data;
   },
 
-  /**
-   * Delete an agent from the agency.
-   */
-  delete: async (id: string | number): Promise<void> => {
+  delete: async (id: number | string): Promise<void> => {
     await api.delete(`/agents/${id}`);
-  }
+  },
 };

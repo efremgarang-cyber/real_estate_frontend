@@ -15,6 +15,11 @@ export interface LoginResult {
   success?: boolean;
 }
 
+/*export interface RegisterPayload extends LoginCredentials {
+  name: string;
+  agency_code: string;
+}*/
+
 export interface InitializeWorkspacePayload {
   agency_name: string;
   role: 'Admin' | 'Agent';
@@ -35,8 +40,8 @@ export interface UpdateProfilePayload {
 
 export const authApi = {
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-    const { data } = await api.post('/login', credentials);
-    return data;
+    const response = await api.post<AuthResponse>('/login', credentials); 
+    return response.data;
   },
 
   register: async (payload: RegisterPayload): Promise<AuthResponse> => {

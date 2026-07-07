@@ -188,15 +188,29 @@ export const EscrowPage: React.FC = () => {
       const response = await escrowApi.getById(parseInt(escrowId, 10));
       const apiData = (response as any).data || response;
 
+      // --- MATHEMATICAL OVERRIDE ---
+      // Force the system to use the actual property price, falling back to escrow amount only if property data is completely missing.
+      const rawPropertyPrice = apiData.property?.price || apiData.escrow?.property?.price;
+      const rawEscrowAmount = apiData.escrow?.amount || apiData.amount || 0;
+      const trueAmount = parseFloat(rawPropertyPrice || rawEscrowAmount);
+
+      const rawTotalPaid = apiData.escrow?.total_paid ?? apiData.total_paid;
+      const trueTotalPaid = typeof rawTotalPaid === 'number' ? rawTotalPaid : parseFloat(rawTotalPaid) || 0;
+
+      // Recalculate all downstream metrics using the true property price
+      const trueRemaining = Math.max(0, trueAmount - trueTotalPaid);
+      const trueProgress = trueAmount > 0 ? Math.round((trueTotalPaid / trueAmount) * 100) : 0;
+      const trueIsFullyFunded = trueTotalPaid >= trueAmount;
+
       const normalizedData = {
         id: Number(apiData.escrow?.id || apiData.id),
         property_id: Number(apiData.escrow?.property_id || apiData.property_id),
         buyer_id: Number(apiData.escrow?.buyer_id || apiData.buyer_id),
         seller_id: Number(apiData.escrow?.seller_id || apiData.seller_id),
         agency_id: Number(apiData.escrow?.agency_id || apiData.agency_id),
-        amount: typeof (apiData.escrow?.amount || apiData.amount) === 'number'
-          ? String(apiData.escrow?.amount || apiData.amount)
-          : (apiData.escrow?.amount || apiData.amount || '0'),
+        
+        amount: trueAmount, // Injected override
+        
         terms: apiData.escrow?.terms || apiData.terms || null,
         status: (apiData.escrow?.status || apiData.status) as any,
         created_by: Number(apiData.escrow?.created_by || apiData.created_by || 0),
@@ -218,14 +232,11 @@ export const EscrowPage: React.FC = () => {
           created_at: m.created_at,
           updated_at: m.updated_at,
         })),
-        progress: typeof apiData.progress === 'number' ? apiData.progress : parseInt(apiData.progress, 10) || 0,
-        total_paid: typeof (apiData.escrow?.total_paid ?? apiData.total_paid) === 'number' 
-          ? (apiData.escrow?.total_paid ?? apiData.total_paid) 
-          : parseFloat(apiData.escrow?.total_paid ?? apiData.total_paid) || 0,
-        remaining: typeof (apiData.escrow?.remaining ?? apiData.remaining) === 'number' 
-          ? (apiData.escrow?.remaining ?? apiData.remaining) 
-          : parseFloat(apiData.escrow?.remaining ?? apiData.remaining) || 0,
-        is_fully_funded: !!(apiData.escrow?.is_fully_funded ?? apiData.is_fully_funded),
+        
+        progress: trueProgress,           // Injected override
+        total_paid: trueTotalPaid, 
+        remaining: trueRemaining,         // Injected override
+        is_fully_funded: trueIsFullyFunded, // Injected override
       } as EscrowWithProgress;
 
       setEscrow(normalizedData);
@@ -260,7 +271,6 @@ export const EscrowPage: React.FC = () => {
     }
   };
 
-  // Strategic Context Action Controls (Buyer Verification / Seller Requests / Dispute Escalation)
   const handleBuyerReleaseFunds = async () => {
     if (!window.confirm("Confirm release of locked funds? This cannot be undone.")) return;
     setActionLoading(true);
@@ -303,7 +313,6 @@ export const EscrowPage: React.FC = () => {
     }
   };
 
-  // Payment Callback Sync Hooks
   useEffect(() => {
     const isPaymentSuccess = searchParams.get('payment') === 'success'; 
     if (isPaymentSuccess && !hasRefreshed.current) {
@@ -315,7 +324,6 @@ export const EscrowPage: React.FC = () => {
     }
   }, [searchParams, id, setSearchParams, fetchEscrow]);
 
-  // Initial Data Pull Hooks
   useEffect(() => {
     if (!id || id === 'undefined') {
       setError('Invalid entry route index profile reference key parameter.');
@@ -325,7 +333,6 @@ export const EscrowPage: React.FC = () => {
     fetchEscrow(id);
   }, [id, fetchEscrow]);
 
-  // Polling Configurations
   useEffect(() => {
     if (!escrow || escrow.is_fully_funded || escrow.remaining === 0) return;
     if (pollingInterval.current) clearInterval(pollingInterval.current);
@@ -362,7 +369,6 @@ export const EscrowPage: React.FC = () => {
     );
   }
 
-  // Identity Evaluation Context Compute Blocks
   const isBuyer = currentUser?.id === escrow.buyer_id;
   const isSeller = currentUser?.id === escrow.seller_id;
 
@@ -385,7 +391,6 @@ export const EscrowPage: React.FC = () => {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-4xl mx-auto p-6 bg-[#f9fafb] min-h-screen text-gray-900 font-sans">
       
-      {/* Toast Overlay */}
       <AnimatePresence>
         {showSuccessMessage && (
           <motion.div 
@@ -397,7 +402,6 @@ export const EscrowPage: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Primary Header Elements matching image_c0116e.png */}
       <div className="flex items-center justify-between mb-6">
         <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-400 hover:text-gray-900 transition group text-xs font-bold">
           <ArrowLeft size={16} className="group-hover:-translate-x-0.5 transition" />
@@ -411,7 +415,6 @@ export const EscrowPage: React.FC = () => {
         )}
       </div>
 
-      {/* Main Structural Container Ledger Frame */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
         <div className="bg-[#141414] text-white p-6">
           <div className="flex justify-between items-start">
@@ -427,7 +430,6 @@ export const EscrowPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Aggregate Processing State Indicators */}
         <div className="p-6 border-b border-gray-50">
           <div className="flex justify-between items-center mb-2">
             <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Settlement Performance Progress</span>
@@ -442,7 +444,6 @@ export const EscrowPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Normalized Grid Financial Rows matching image_c0116e.png layout */}
         <div className="grid grid-cols-3 gap-4 p-6 bg-gray-50/70 border-b border-gray-100 text-center">
           <div>
             <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Total Valuation Cap</span>
@@ -458,7 +459,6 @@ export const EscrowPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Dynamic Context Multi-Perspective Operational Work Deck */}
         <div className="p-6 bg-white border-t border-gray-50">
           <div className="flex items-center gap-1.5 mb-4 text-xs font-bold text-gray-800 uppercase tracking-wider">
             <Scale size={14} className="text-indigo-500" />
@@ -468,7 +468,6 @@ export const EscrowPage: React.FC = () => {
             </span>
           </div>
 
-          {/* Dynamic Render Paths according to Role Permissions */}
           {isBuyer ? (
             <div className="bg-indigo-50/30 border border-indigo-100 rounded-xl p-4">
               <h4 className="text-xs font-bold text-indigo-900 mb-1">Buyer Disbursal Management Operations</h4>
@@ -514,7 +513,6 @@ export const EscrowPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Phase Track Milestone Progress Display Section Grid */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-1.5">
           <TrendingUp size={14} /> Transaction Lifecycle Framework Status
@@ -526,7 +524,6 @@ export const EscrowPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Itemized Milestones Component List Display Loop */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Itemized Contract Milestones Breakdown</h3>
         {escrow.milestones && escrow.milestones.length > 0 ? (
@@ -551,7 +548,6 @@ export const EscrowPage: React.FC = () => {
         )}
       </div>
 
-      {/* Contract Terms Framework Details Panel */}
       {escrow.terms && (
         <div className="bg-gray-100/60 rounded-2xl p-5 mb-6 border border-gray-100">
           <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Shield size={14} /> Executed Contract Stipulations</h4>
@@ -559,7 +555,6 @@ export const EscrowPage: React.FC = () => {
         </div>
       )}
 
-      {/* Core Payment Execution Interaction Drawer (Accessible only when balance remains and active context is Buyer) */}
       {hasRemainingPayment && isBuyer && (
         <div className="bg-gradient-to-br from-[#141414] to-gray-800 rounded-2xl p-6 text-white shadow-xl">
           <div className="text-center mb-5">
@@ -584,7 +579,6 @@ export const EscrowPage: React.FC = () => {
         </div>
       )}
 
-      {/* --- EXTERNAL UTILITY MODALS DECLARATIONS --- */}
       <CreateMilestoneModal
         isOpen={isMilestoneModalOpen}
         onClose={() => setIsMilestoneModalOpen(false)}

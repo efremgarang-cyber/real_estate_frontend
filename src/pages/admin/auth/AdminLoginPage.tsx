@@ -1,4 +1,3 @@
-// src/pages/AdminLoginPage.tsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/src/lib/AuthContext";
@@ -9,11 +8,12 @@ import { AdminAuthContainer } from "../../../components/admin-auth/AdminAuthCont
 import { AdminLoginView } from "../../../components/admin-auth/AdminLoginView";
 import { AdminSignUpView } from "../../../components/admin-auth/AdminSignUpView";
 import { AgencySetupView } from "../../../components/admin-auth/AgencySetupView";
+import { AdminAuthView } from "../../../components/admin-auth/AdminLoginView";
 
 export const AdminLoginPage: React.FC = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
-  const [currentView, setCurrentView] = useState<'login' | 'signup'>('login');
+  const [view, setView] = useState<AdminAuthView>("login");
 
   // ── Intelligent Routing Matrix ──
   useEffect(() => {
@@ -27,7 +27,7 @@ export const AdminLoginPage: React.FC = () => {
 
   // ── Route: Limbo State (User exists, profile/agency missing) ──
   if (user && !profile) {
-    return <AgencySetupView />;
+    return <AgencySetupView onSwitchView={setView} />;
   }
 
   // ── Route: Redirect Fallback (System is verifying session) ──
@@ -45,10 +45,10 @@ export const AdminLoginPage: React.FC = () => {
   // ── Route: Unauthenticated Forms ──
   return (
     <AdminAuthContainer>
-      {currentView === 'login' ? (
-        <AdminLoginView onSwitchView={setCurrentView} />
+      {view === 'login' ? (
+        <AdminLoginView onSwitchView={setView} />
       ) : (
-        <AdminSignUpView onSwitchView={setCurrentView} />
+        <AdminSignUpView onSwitchView={setView} />
       )}
     </AdminAuthContainer>
   );

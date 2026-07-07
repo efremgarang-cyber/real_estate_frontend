@@ -17,6 +17,11 @@ export const escrowApi = {
     return response.data;
   },
 
+  getMyEscrows: async (params?: { limit?: number }) => {
+    const response = await api.get('/escrows/my-escrows', { params });
+    return response.data;
+  },
+
   getById: async (id: string | number) => {
     const response = await api.get(`/escrows/${id}`);
     return response.data;
@@ -29,13 +34,6 @@ export const escrowApi = {
     } catch {
       return null;
     }
-  },
-
-  // Add this block to your existing escrowApi object
-  getMyEscrows: async (params?: { limit?: number }) => {
-    // Pass the params directly to the api.get call
-    const response = await api.get('/escrows/my-escrows', { params });
-    return response.data;
   },
 
   initialize: async (data: EscrowInitializeData) => {

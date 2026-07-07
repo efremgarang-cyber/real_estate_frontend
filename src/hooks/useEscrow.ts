@@ -1,4 +1,3 @@
-// 📁 File: src/hooks/useEscrow.ts
 import { useState, useEffect, useCallback } from 'react';
 import { escrowApi } from '../api/escrow';
 
@@ -12,26 +11,23 @@ export const useEscrow = () => {
       setLoading(true);
       setError(null);
       const data = await escrowApi.getAll();
-      // Support both array and wrapped responses
       setTransactions(Array.isArray(data) ? data : data.transactions || []);
     } catch (err: any) {
       console.error('Error fetching escrow ledger:', err);
-      setError(err.response?.data?.message || 'Failed to fetch trust accounts');
+      setError(err.response?.data?.message || 'Failed to fetch escrow records');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Initial load
   useEffect(() => {
     fetchTransactions();
   }, [fetchTransactions]);
 
-  // Release funds (after deliverable is approved)
   const releaseEscrow = async (escrowId: string | number) => {
     try {
       const response = await escrowApi.release(escrowId);
-      await fetchTransactions(); // refresh list
+      await fetchTransactions();
       return { success: true, data: response };
     } catch (err: any) {
       console.error('Release failed:', err);
@@ -39,7 +35,6 @@ export const useEscrow = () => {
     }
   };
 
-  // Refund (optional)
   const refundEscrow = async (escrowId: string | number) => {
     try {
       const response = await escrowApi.refund(escrowId);
@@ -51,9 +46,6 @@ export const useEscrow = () => {
     }
   };
 
-  // Legacy alias for compatibility with EscrowPage
-  const disburseEscrowPool = releaseEscrow;
-
   return {
     transactions,
     loading,
@@ -61,6 +53,6 @@ export const useEscrow = () => {
     refreshTransactions: fetchTransactions,
     releaseEscrow,
     refundEscrow,
-    disburseEscrowPool, // keep for backward compatibility
+    disburseEscrowPool: releaseEscrow,
   };
 };

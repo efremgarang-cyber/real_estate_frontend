@@ -140,7 +140,6 @@ export interface PropertyImage {
   updated_at: string;
 }
 
-
 export interface Property {
   id: number;
   agency_id: number;

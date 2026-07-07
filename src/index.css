@@ -49,7 +49,6 @@
            hover:bg-[#141414] dark:hover:bg-gray-800 hover:text-[#E4E3E0] transition-all cursor-pointer;
   }
 }
-
 @keyframes shimmer {
   0% {
     background-position: -200% 0;

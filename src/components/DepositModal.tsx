@@ -5,11 +5,11 @@ import { X, CreditCard, ArrowRight, Loader2 } from 'lucide-react';
 interface DepositModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onInitializeDeposit: (amount: number) => Promise<string | null>;
+  onInitializeDeposit: (amount: number, escrowId?: number) => Promise<string | null>; // ← add escrowId param
   escrowId?: number;
 }
 
-export const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose, onInitializeDeposit }) => {
+export const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose, onInitializeDeposit, escrowId }) => { // ← add escrowId 
   const [amount, setAmount] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,7 +68,7 @@ const handleSubmit = async (e: React.FormEvent) => {
             </div>
           </div>
 
-          <button 
+          <button title="loading"
             type="button"
             disabled={loading}
             onClick={onClose}
