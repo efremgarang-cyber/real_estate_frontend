@@ -3,7 +3,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { MoreHorizontal, Mail, Phone, Calendar, CreditCard, ArrowRight, ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
 import { cn, formatCurrency } from "../../../lib/utils";
-import { Lead, KanbanStage } from "../types";
+import { Lead, KanbanStage } from "@/src/types";
 import { leadApi } from "../../../api/leads";
 
 interface KanbanCardProps {

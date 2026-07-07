@@ -2,21 +2,23 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom"; // Hook to seamlessly switch dashboard panels
 import { Search, MessageSquare, CheckCircle2 } from "lucide-react";
 import { KanbanCard } from "./KanbanCard"; 
-import { Lead } from "../types";
+import { Lead } from "@/src/types";
 
 export default function Kanban() {
   const navigate = useNavigate();
 
-  // Mocking lead data state
   const [leads, setLeads] = useState<Lead[]>([
     {
-      id: "1",
+      id: 1,
+      agency_id: 1,
+      assigned_to: null,
       name: "John Smith",
       email: "john.smith@example.com",
       phone: "+254700000000",
-      kanban_stage: "offer",
-      assigned_to: null, 
-      value: "150000.00"
+      kanban_stage: "offer" as any, // Type assertion may be needed depending on your KanbanStage definition
+      value: "150000.00",
+      created_at: "2026-07-06T10:00:00.000000Z",
+      updated_at: "2026-07-06T10:00:00.000000Z"
     }
   ]);
 

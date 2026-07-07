@@ -3,8 +3,10 @@ import React, { useState } from "react";
 import { useAuth } from "@/src/lib/AuthContext";
 import { ArrowRight, Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react";
 
+export type AdminAuthView = 'login' | 'signup' | 'agency_setup' | 'otp_login';
+
 interface AdminLoginViewProps {
-  onSwitchView: (view: 'login' | 'signup') => void;
+  onSwitchView: (view: AdminAuthView) => void;
 }
 
 export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onSwitchView }) => {
@@ -25,7 +27,7 @@ export const AdminLoginView: React.FC<AdminLoginViewProps> = ({ onSwitchView }) 
 
       // ── CATCH THE 2FA INTERCEPT ──
       if (result?.requires2FA) {
-        onSwitchView('otp_login' as any); // Logic for OTP view integration
+        onSwitchView('otp_login'); 
       }
     } catch (err: any) {
       setError(err.response?.data?.message || "Authentication failed. Check your admin credentials.");

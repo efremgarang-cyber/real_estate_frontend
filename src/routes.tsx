@@ -3,7 +3,6 @@ import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 
 // Global / Shared Layouts
 import { AgentLayout } from "./components/layout/AgentLayout";
-import { AdminLayout } from "./components/layout/AdminLayout";
 
 // Public / Client Layer
 import LandingPage from "./pages/LandingPage";
@@ -13,7 +12,6 @@ import { PublicOfferCheckout } from "./pages/Public/OfferCheckout";
 
 // Auth Components
 import { LoginPage } from "./pages/Agent/auth/LoginPage";
-import { AdminLoginPage } from "./pages/Admin/auth/AdminLoginPage";
 
 // Agent Module Components
 import { DashboardOverview } from "./components/Overview";
@@ -23,20 +21,21 @@ import KanbanBoard from './pages/Agent/leads/Kanban';
 import { VaultPage } from "./pages/Agent/vault/Vault";
 import { Settings } from "./pages/Settings";
 
-// ✨ Your Feature Components (Added Back)
 import { EscrowPage } from "./pages/Agent/escrow/EscrowPage";
 import SubscriptionPage from "./pages/SubscriptionPage";
 import { PaymentCallback } from "./pages/PaymentCallback";
 import BillingDashboard from "./pages/BillingDashboard";
 
 // Admin Module Components
-import { AdminDashboardOverview } from "./pages/Admin/AdminDashboardOverview";
-import { AdminListings } from "./pages/Admin/properties/AdminListings";
-import { AdminPropertyDetails } from "./pages/Admin/properties/AdminPropertyDetails";
-import { AdminVaultPage } from "./pages/Admin/vault/AdminVaultPage";
-import { AdminLeadsDashboard } from "./pages/Admin/leads/AdminLeads";
-import { UserMonitor } from "./pages/Admin/UserMonitor";
-import { AdminSecurityPage } from "./pages/Admin/AdminSecurityPage";
+import {AdminLeads } from './pages/admin/leads/AdminLeads'
+import { AdminLayout } from './components/layout/AdminLayout';
+import AdminLoginPage from "./pages/Admin/auth/AdminLoginPage";
+import { AdminDashboardOverview } from './pages/admin/AdminDashboardOverview';
+import { AdminSecurityPage } from './pages/admin/AdminSecurityPage';
+import { UserMonitor } from './pages/admin/UserMonitor';
+import { AdminListings } from './pages/admin/properties/AdminListings';
+import { AdminPropertyDetails } from './pages/admin/properties/AdminPropertyDetails';
+import { AdminVaultPage } from './pages/admin/vault/AdminVaultPage';
 import { UpdatePasswordPage } from "./pages/Agent/auth/UpdatePassword";
 import { MatchesInbox } from "./pages/Agent/leads/MatchesInbox";
 import { EscrowsListPage } from "./pages/escrow/EscrowListPage";
@@ -118,7 +117,7 @@ export const appRoutes: RouteObject[
                 { path: "dashboard", element: <AdminDashboardOverview /> },
                 { path: "properties", element: <AdminListings /> },
                 { path: "properties/:id", element: <AdminPropertyDetails /> },
-                { path: "leads", element: <AdminLeadsDashboard /> },
+                { path: "leads", element: <AdminLeads /> },
                 { path: "vault", element: <AdminVaultPage /> },
                 { path: "users", element: <UserMonitor /> },
                 { path: "security", element: <AdminSecurityPage /> },
